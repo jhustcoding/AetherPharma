@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { TrendingUp, DollarSign, Package, Users, Calendar, Star, AlertTriangle, Target, Activity, Zap, Brain, Filter, Download, RefreshCw } from 'lucide-react';
 import { mockProducts, mockSales, mockCustomers, mockCustomerPurchaseHistory } from '../data/mockData';
+import InventoryMovementAnalysis from './InventoryMovementAnalysis';
 
 const Analytics: React.FC = () => {
   const [timeRange, setTimeRange] = useState('7d');
@@ -34,12 +35,40 @@ const Analytics: React.FC = () => {
     { segment: 'New Customers', count: 125, revenue: 25000, avgOrder: 35.80, color: '#8b5cf6' },
   ];
 
-  // Inventory turnover data
+  // Inventory turnover data with detailed movement analysis
   const inventoryTurnover = [
-    { category: 'Fast Moving', products: 45, turnoverRate: 8.5, value: 125000 },
-    { category: 'Medium Moving', products: 78, turnoverRate: 4.2, value: 89000 },
-    { category: 'Slow Moving', products: 32, turnoverRate: 1.8, value: 45000 },
-    { category: 'Dead Stock', products: 12, turnoverRate: 0.2, value: 15000 },
+    { 
+      category: 'Fast Moving', 
+      products: 45, 
+      turnoverRate: 8.5, 
+      value: 125000,
+      description: 'Products with 6+ turnovers/year (≤60 days stock)',
+      color: '#22c55e'
+    },
+    { 
+      category: 'Medium Moving', 
+      products: 78, 
+      turnoverRate: 4.2, 
+      value: 89000,
+      description: 'Products with 3-6 turnovers/year (60-120 days stock)',
+      color: '#3b82f6'
+    },
+    { 
+      category: 'Slow Moving', 
+      products: 32, 
+      turnoverRate: 1.8, 
+      value: 45000,
+      description: 'Products with 1-3 turnovers/year (120-365 days stock)',
+      color: '#f59e0b'
+    },
+    { 
+      category: 'Dead Stock', 
+      products: 12, 
+      turnoverRate: 0.2, 
+      value: 15000,
+      description: 'Products with <1 turnover/year (>365 days stock)',
+      color: '#ef4444'
+    },
   ];
 
   // Predictive analytics data
@@ -62,7 +91,8 @@ const Analytics: React.FC = () => {
       category: 'Diabetes',
       margin: 35.2,
       turnoverRate: 8.2,
-      stockDays: 45
+      stockDays: 45,
+      movementCategory: 'fast'
     },
     { 
       id: '2',
@@ -73,7 +103,8 @@ const Analytics: React.FC = () => {
       category: 'Cardiovascular',
       margin: 34.1,
       turnoverRate: 7.8,
-      stockDays: 47
+      stockDays: 47,
+      movementCategory: 'fast'
     },
     { 
       id: '3',
@@ -84,7 +115,8 @@ const Analytics: React.FC = () => {
       category: 'Respiratory',
       margin: 30.4,
       turnoverRate: 6.5,
-      stockDays: 56
+      stockDays: 56,
+      movementCategory: 'fast'
     },
     { 
       id: '4',
@@ -95,7 +127,8 @@ const Analytics: React.FC = () => {
       category: 'Pain Relief',
       margin: 38.8,
       turnoverRate: 9.1,
-      stockDays: 40
+      stockDays: 40,
+      movementCategory: 'fast'
     },
     { 
       id: '5',
@@ -106,7 +139,8 @@ const Analytics: React.FC = () => {
       category: 'Vitamins',
       margin: 37.5,
       turnoverRate: 3.2,
-      stockDays: 114
+      stockDays: 114,
+      movementCategory: 'medium'
     }
   ];
 
@@ -140,6 +174,16 @@ const Analytics: React.FC = () => {
     if (rate >= 6) return 'text-green-600 bg-green-50';
     if (rate >= 3) return 'text-yellow-600 bg-yellow-50';
     return 'text-red-600 bg-red-50';
+  };
+
+  const getMovementCategoryColor = (category: string) => {
+    switch (category) {
+      case 'fast': return 'text-green-600 bg-green-50';
+      case 'medium': return 'text-blue-600 bg-blue-50';
+      case 'slow': return 'text-yellow-600 bg-yellow-50';
+      case 'dead': return 'text-red-600 bg-red-50';
+      default: return 'text-gray-600 bg-gray-50';
+    }
   };
 
   const renderOverviewTab = () => (
@@ -299,7 +343,8 @@ const Analytics: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Revenue</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Growth</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Margin</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Turnover</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Movement</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock Days</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -332,10 +377,11 @@ const Analytics: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-900">{product.margin}%</td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTurnoverColor(product.turnoverRate)}`}>
-                      {product.turnoverRate}x
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getMovementCategoryColor(product.movementCategory)}`}>
+                      {product.movementCategory}
                     </span>
                   </td>
+                  <td className="px-6 py-4 text-sm text-gray-900">{product.stockDays} days</td>
                 </tr>
               ))}
             </tbody>
@@ -347,15 +393,24 @@ const Analytics: React.FC = () => {
 
   const renderInventoryTab = () => (
     <div className="space-y-6">
+      {/* Enhanced Inventory Movement Analysis */}
+      <InventoryMovementAnalysis />
+
       {/* Inventory Turnover Analysis */}
       <div className="bg-white rounded-lg shadow-sm p-6">
-        <h2 className="text-lg font-semibold mb-4">Inventory Turnover Analysis</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <h2 className="text-lg font-semibold mb-4">Inventory Movement Categories</h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           {inventoryTurnover.map((item, index) => (
-            <div key={index} className="p-4 border rounded-lg">
-              <h3 className="font-medium text-gray-900">{item.category}</h3>
+            <div key={index} className="p-4 border rounded-lg" style={{ borderLeftColor: item.color, borderLeftWidth: '4px' }}>
+              <h3 className="font-medium text-gray-900 flex items-center">
+                {item.category === 'Fast Moving' && <Zap className="h-4 w-4 mr-2 text-green-600" />}
+                {item.category === 'Medium Moving' && <Activity className="h-4 w-4 mr-2 text-blue-600" />}
+                {item.category === 'Slow Moving' && <TrendingDown className="h-4 w-4 mr-2 text-yellow-600" />}
+                {item.category === 'Dead Stock' && <AlertTriangle className="h-4 w-4 mr-2 text-red-600" />}
+                {item.category}
+              </h3>
               <div className="mt-2 space-y-1">
-                <div className="text-2xl font-bold text-gray-900">{item.products}</div>
+                <div className="text-2xl font-bold" style={{ color: item.color }}>{item.products}</div>
                 <div className="text-sm text-gray-600">Products</div>
                 <div className="text-sm">
                   <span className="font-medium">Turnover:</span> {item.turnoverRate}x/year
@@ -363,9 +418,23 @@ const Analytics: React.FC = () => {
                 <div className="text-sm">
                   <span className="font-medium">Value:</span> ₱{item.value.toLocaleString()}
                 </div>
+                <div className="text-xs text-gray-500 mt-2">{item.description}</div>
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Movement Categories Explanation */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h4 className="font-medium text-blue-900 mb-2">How Product Movement is Calculated:</h4>
+          <div className="text-sm text-blue-800 space-y-1">
+            <p><strong>Turnover Rate:</strong> Units Sold per Year ÷ Average Stock Level</p>
+            <p><strong>Days of Stock:</strong> (Current Stock × Days in Period) ÷ Units Sold in Period</p>
+            <p><strong>Fast Moving:</strong> 6+ turnovers/year (≤60 days stock) - High demand, quick sales</p>
+            <p><strong>Medium Moving:</strong> 3-6 turnovers/year (60-120 days stock) - Steady demand</p>
+            <p><strong>Slow Moving:</strong> 1-3 turnovers/year (120-365 days stock) - Low demand, consider promotions</p>
+            <p><strong>Dead Stock:</strong> <1 turnover/year (>365 days stock) - No movement, consider clearance</p>
+          </div>
         </div>
       </div>
 

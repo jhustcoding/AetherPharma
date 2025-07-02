@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Search, Plus, Edit, AlertTriangle, Package, TrendingUp, TrendingDown, ShoppingCart, Pill } from 'lucide-react';
+import { Search, Plus, Edit, AlertTriangle, Package, TrendingUp, TrendingDown, ShoppingCart, Pill, X, Save } from 'lucide-react';
 import { Product } from '../types';
 import { mockProducts } from '../data/mockData';
+import toast from 'react-hot-toast';
 
 const Inventory: React.FC = () => {
   const [products, setProducts] = useState<Product[]>(mockProducts);
@@ -9,6 +10,18 @@ const Inventory: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showLowStock, setShowLowStock] = useState(false);
   const [productTypeFilter, setProductTypeFilter] = useState<'all' | 'drug' | 'grocery'>('all');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newProduct, setNewProduct] = useState<Partial<Product>>({
+    productType: 'drug',
+    prescriptionRequired: false,
+    stock: 0,
+    minStock: 10,
+    price: 0,
+    cost: 0,
+    contraindications: [],
+    sideEffects: [],
+    interactions: []
+  });
 
   // Filter products by type
   const filteredByType = products.filter(product => {
@@ -50,12 +63,98 @@ const Inventory: React.FC = () => {
     lowStock: groceryProducts.filter(p => p.stock <= p.minStock).length
   };
 
+  const handleAddProduct = () => {
+    // Validation
+    if (!newProduct.name || !newProduct.category || !newProduct.manufacturer || 
+        !newProduct.batchNumber || !newProduct.expiryDate || 
+        newProduct.price === undefined || newProduct.cost === undefined) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    // Additional validation for drugs
+    if (newProduct.productType === 'drug' && (!newProduct.genericName || !newProduct.dosage || !newProduct.form)) {
+      toast.error('Please fill in all drug-specific fields (Generic Name, Dosage, Form)');
+      return;
+    }
+
+    // Additional validation for grocery
+    if (newProduct.productType === 'grocery' && (!newProduct.brand || !newProduct.unit)) {
+      toast.error('Please fill in all grocery-specific fields (Brand, Unit)');
+      return;
+    }
+
+    // Generate new product ID
+    const newId = newProduct.productType === 'drug' 
+      ? `${products.filter(p => p.productType === 'drug').length + 1}`
+      : `G${String(products.filter(p => p.productType === 'grocery').length + 1).padStart(3, '0')}`;
+
+    const productToAdd: Product = {
+      id: newId,
+      name: newProduct.name!,
+      genericName: newProduct.genericName,
+      category: newProduct.category!,
+      manufacturer: newProduct.manufacturer!,
+      dosage: newProduct.dosage,
+      form: newProduct.form,
+      price: newProduct.price!,
+      cost: newProduct.cost!,
+      stock: newProduct.stock!,
+      minStock: newProduct.minStock!,
+      expiryDate: newProduct.expiryDate!,
+      batchNumber: newProduct.batchNumber!,
+      prescriptionRequired: newProduct.prescriptionRequired!,
+      activeIngredient: newProduct.activeIngredient,
+      contraindications: newProduct.contraindications || [],
+      sideEffects: newProduct.sideEffects || [],
+      interactions: newProduct.interactions || [],
+      barcode: newProduct.barcode,
+      productType: newProduct.productType!,
+      unit: newProduct.unit,
+      brand: newProduct.brand,
+      description: newProduct.description
+    };
+
+    setProducts([...products, productToAdd]);
+    setShowAddModal(false);
+    setNewProduct({
+      productType: 'drug',
+      prescriptionRequired: false,
+      stock: 0,
+      minStock: 10,
+      price: 0,
+      cost: 0,
+      contraindications: [],
+      sideEffects: [],
+      interactions: []
+    });
+    toast.success(`${productToAdd.name} added successfully!`);
+  };
+
+  const handleInputChange = (field: keyof Product, value: any) => {
+    setNewProduct(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleArrayInputChange = (field: 'contraindications' | 'sideEffects' | 'interactions', value: string) => {
+    const items = value.split(',').map(item => item.trim()).filter(item => item.length > 0);
+    setNewProduct(prev => ({
+      ...prev,
+      [field]: items
+    }));
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
-        <button className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center">
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center"
+        >
           <Plus className="h-5 w-5 mr-2" />
           Add Product
         </button>
@@ -356,6 +455,349 @@ const Inventory: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Add Product Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Add New Product</h2>
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Product Type Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Product Type</label>
+                  <div className="flex space-x-4">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        value="drug"
+                        checked={newProduct.productType === 'drug'}
+                        onChange={(e) => handleInputChange('productType', e.target.value)}
+                        className="mr-2"
+                      />
+                      <Pill className="h-4 w-4 mr-1" />
+                      Drug
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        value="grocery"
+                        checked={newProduct.productType === 'grocery'}
+                        onChange={(e) => handleInputChange('productType', e.target.value)}
+                        className="mr-2"
+                      />
+                      <ShoppingCart className="h-4 w-4 mr-1" />
+                      Grocery
+                    </label>
+                  </div>
+                </div>
+
+                {/* Basic Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Product Name *</label>
+                    <input
+                      type="text"
+                      value={newProduct.name || ''}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      placeholder="Enter product name"
+                    />
+                  </div>
+
+                  {newProduct.productType === 'drug' ? (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Generic Name *</label>
+                      <input
+                        type="text"
+                        value={newProduct.genericName || ''}
+                        onChange={(e) => handleInputChange('genericName', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="Enter generic name"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Brand *</label>
+                      <input
+                        type="text"
+                        value={newProduct.brand || ''}
+                        onChange={(e) => handleInputChange('brand', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="Enter brand name"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
+                    <input
+                      type="text"
+                      value={newProduct.category || ''}
+                      onChange={(e) => handleInputChange('category', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      placeholder="Enter category"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Manufacturer *</label>
+                    <input
+                      type="text"
+                      value={newProduct.manufacturer || ''}
+                      onChange={(e) => handleInputChange('manufacturer', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      placeholder="Enter manufacturer"
+                    />
+                  </div>
+                </div>
+
+                {/* Product Type Specific Fields */}
+                {newProduct.productType === 'drug' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Dosage *</label>
+                      <input
+                        type="text"
+                        value={newProduct.dosage || ''}
+                        onChange={(e) => handleInputChange('dosage', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="e.g., 500mg"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Form *</label>
+                      <select
+                        value={newProduct.form || ''}
+                        onChange={(e) => handleInputChange('form', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      >
+                        <option value="">Select form</option>
+                        <option value="Tablet">Tablet</option>
+                        <option value="Capsule">Capsule</option>
+                        <option value="Syrup">Syrup</option>
+                        <option value="Injection">Injection</option>
+                        <option value="Cream">Cream</option>
+                        <option value="Ointment">Ointment</option>
+                        <option value="Inhaler">Inhaler</option>
+                        <option value="Drops">Drops</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Active Ingredient</label>
+                      <input
+                        type="text"
+                        value={newProduct.activeIngredient || ''}
+                        onChange={(e) => handleInputChange('activeIngredient', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="Enter active ingredient"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Unit *</label>
+                      <select
+                        value={newProduct.unit || ''}
+                        onChange={(e) => handleInputChange('unit', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      >
+                        <option value="">Select unit</option>
+                        <option value="kg">Kilogram (kg)</option>
+                        <option value="g">Gram (g)</option>
+                        <option value="liter">Liter</option>
+                        <option value="ml">Milliliter (ml)</option>
+                        <option value="piece">Piece</option>
+                        <option value="pack">Pack</option>
+                        <option value="bottle">Bottle</option>
+                        <option value="box">Box</option>
+                        <option value="bag">Bag</option>
+                        <option value="container">Container</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                      <input
+                        type="text"
+                        value={newProduct.description || ''}
+                        onChange={(e) => handleInputChange('description', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="Enter product description"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Inventory Information */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Price (₱) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newProduct.price || ''}
+                      onChange={(e) => handleInputChange('price', parseFloat(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Cost (₱) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newProduct.cost || ''}
+                      onChange={(e) => handleInputChange('cost', parseFloat(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Stock *</label>
+                    <input
+                      type="number"
+                      value={newProduct.stock || ''}
+                      onChange={(e) => handleInputChange('stock', parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Min Stock *</label>
+                    <input
+                      type="number"
+                      value={newProduct.minStock || ''}
+                      onChange={(e) => handleInputChange('minStock', parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      placeholder="10"
+                    />
+                  </div>
+                </div>
+
+                {/* Batch and Expiry Information */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Batch Number *</label>
+                    <input
+                      type="text"
+                      value={newProduct.batchNumber || ''}
+                      onChange={(e) => handleInputChange('batchNumber', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      placeholder="Enter batch number"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date *</label>
+                    <input
+                      type="date"
+                      value={newProduct.expiryDate || ''}
+                      onChange={(e) => handleInputChange('expiryDate', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Barcode</label>
+                    <input
+                      type="text"
+                      value={newProduct.barcode || ''}
+                      onChange={(e) => handleInputChange('barcode', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      placeholder="Enter barcode"
+                    />
+                  </div>
+                </div>
+
+                {/* Drug-specific additional fields */}
+                {newProduct.productType === 'drug' && (
+                  <>
+                    <div>
+                      <label className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          checked={newProduct.prescriptionRequired || false}
+                          onChange={(e) => handleInputChange('prescriptionRequired', e.target.checked)}
+                          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Prescription Required</span>
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Contraindications</label>
+                        <textarea
+                          value={newProduct.contraindications?.join(', ') || ''}
+                          onChange={(e) => handleArrayInputChange('contraindications', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          placeholder="Enter contraindications separated by commas"
+                          rows={3}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Side Effects</label>
+                        <textarea
+                          value={newProduct.sideEffects?.join(', ') || ''}
+                          onChange={(e) => handleArrayInputChange('sideEffects', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          placeholder="Enter side effects separated by commas"
+                          rows={3}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Drug Interactions</label>
+                        <textarea
+                          value={newProduct.interactions?.join(', ') || ''}
+                          onChange={(e) => handleArrayInputChange('interactions', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          placeholder="Enter drug interactions separated by commas"
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 pt-6 border-t">
+                  <button
+                    onClick={() => setShowAddModal(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddProduct}
+                    className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center"
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    Add Product
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

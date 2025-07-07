@@ -1,4 +1,4 @@
-import { Product, Sale, SaleItem } from '../types';
+import { Product, Sale, SaleItem, InventoryAnalytics } from '../types';
 
 export interface ProductMovementAnalysis {
   id: string;
@@ -17,6 +17,26 @@ export interface ProductMovementAnalysis {
 }
 
 export class InventoryAnalyticsService {
+  static getInventoryAnalytics(): InventoryAnalytics {
+    return {
+      stockLevels: [
+        { name: 'In Stock', value: 65 },
+        { name: 'Low Stock', value: 20 },
+        { name: 'Out of Stock', value: 8 },
+        { name: 'Overstock', value: 7 }
+      ],
+      lowStockAlerts: [
+        { product: 'Amoxicillin 250mg', quantity: 15 },
+        { product: 'Digital Thermometer', quantity: 5 },
+        { product: 'Blood Pressure Monitor', quantity: 3 },
+        { product: 'Omeprazole 20mg', quantity: 8 },
+        { product: 'Salbutamol Inhaler', quantity: 10 }
+      ],
+      totalValue: 284750.50,
+      totalItems: 1825
+    };
+  }
+
   static analyzeProductMovement(
     products: Product[],
     sales: Sale[],
@@ -124,5 +144,84 @@ export class InventoryAnalyticsService {
     return analysis
       .filter(item => item.currentStock <= item.reorderPoint && item.movementCategory !== 'dead')
       .sort((a, b) => (a.currentStock / a.reorderPoint) - (b.currentStock / b.reorderPoint));
+  }
+
+  static getLowStockProducts(products: Product[]) {
+    return products
+      .filter(product => product.stock <= product.minStock)
+      .map(product => ({
+        id: product.id,
+        name: product.name,
+        currentStock: product.stock,
+        minStock: product.minStock,
+        category: product.category,
+        severity: product.stock === 0 ? 'critical' : product.stock <= product.minStock * 0.5 ? 'high' : 'medium'
+      }));
+  }
+
+  static getExpiringProducts(products: Product[], daysAhead: number = 90) {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + daysAhead);
+
+    return products
+      .filter(product => new Date(product.expiryDate) <= futureDate)
+      .map(product => {
+        const daysUntilExpiry = Math.ceil(
+          (new Date(product.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+        );
+        
+        return {
+          id: product.id,
+          name: product.name,
+          expiryDate: product.expiryDate,
+          daysUntilExpiry,
+          currentStock: product.stock,
+          stockValue: product.stock * product.cost,
+          category: product.category,
+          batchNumber: product.batchNumber,
+          severity: daysUntilExpiry <= 0 ? 'expired' : daysUntilExpiry <= 30 ? 'critical' : 'warning'
+        };
+      })
+      .sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
+  }
+
+  static calculateInventoryValue(products: Product[]) {
+    const totalCostValue = products.reduce((sum, product) => sum + (product.cost * product.stock), 0);
+    const totalRetailValue = products.reduce((sum, product) => sum + (product.price * product.stock), 0);
+    const potentialProfit = totalRetailValue - totalCostValue;
+    
+    return {
+      totalCostValue,
+      totalRetailValue,
+      potentialProfit,
+      profitMargin: totalRetailValue > 0 ? (potentialProfit / totalRetailValue) * 100 : 0
+    };
+  }
+
+  static getInventoryTurnoverMetrics(products: Product[], sales: Sale[], days: number = 365) {
+    const analysis = this.analyzeProductMovement(products, sales, days);
+    const avgTurnover = analysis.reduce((sum, item) => sum + item.turnoverRate, 0) / analysis.length;
+    
+    const categoryTurnover = new Map<string, { turnover: number; count: number }>();
+    
+    analysis.forEach(item => {
+      const category = categoryTurnover.get(item.category) || { turnover: 0, count: 0 };
+      category.turnover += item.turnoverRate;
+      category.count++;
+      categoryTurnover.set(item.category, category);
+    });
+    
+    const categoryMetrics = Array.from(categoryTurnover.entries()).map(([category, data]) => ({
+      category,
+      avgTurnover: data.turnover / data.count,
+      productCount: data.count
+    })).sort((a, b) => b.avgTurnover - a.avgTurnover);
+    
+    return {
+      overallTurnover: avgTurnover,
+      categoryMetrics,
+      fastMovingProducts: analysis.filter(item => item.movementCategory === 'fast').length,
+      deadStockProducts: analysis.filter(item => item.movementCategory === 'dead').length
+    };
   }
 }

@@ -9,6 +9,7 @@ import (
 	"pharmacy-backend/internal/config"
 	"pharmacy-backend/internal/middleware"
 	"pharmacy-backend/internal/models"
+	"pharmacy-backend/internal/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -17,19 +18,27 @@ import (
 )
 
 type Handlers struct {
-	db          *gorm.DB
-	redis       *redis.Client
-	config      *config.Config
-	authService *auth.AuthService
+	db                  *gorm.DB
+	redis               *redis.Client
+	config              *config.Config
+	authService         *auth.AuthService
+	qrService           *services.QRService
+	onlineOrderService  *services.OnlineOrderService
 }
 
 func NewHandlers(db *gorm.DB, redis *redis.Client, config *config.Config, authService *auth.AuthService) *Handlers {
-	return &Handlers{
+	h := &Handlers{
 		db:          db,
 		redis:       redis,
 		config:      config,
 		authService: authService,
 	}
+	
+	// Initialize additional services
+	h.qrService = services.NewQRService(db)
+	h.onlineOrderService = services.NewOnlineOrderService(db, h.qrService)
+	
+	return h
 }
 
 // Health check

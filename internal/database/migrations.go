@@ -22,6 +22,7 @@ func Migrate(db *gorm.DB) error {
 
 	// Auto-migrate all models
 	return db.AutoMigrate(
+		// Core models
 		&models.User{},
 		&models.Customer{},
 		&models.Product{},
@@ -31,6 +32,17 @@ func Migrate(db *gorm.DB) error {
 		&models.PurchaseHistory{},
 		&models.AuditLog{},
 		&models.Supplier{},
+		
+		// Online ordering models
+		&models.OnlineOrder{},
+		&models.OnlineOrderItem{},
+		&models.ShoppingCart{},
+		&models.OrderStatusHistory{},
+		&models.PrescriptionUpload{},
+		
+		// QR Code models
+		&models.QRCode{},
+		&models.QRScanLog{},
 	)
 }
 

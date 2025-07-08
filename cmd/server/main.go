@@ -213,6 +213,48 @@ func setupRouter(middleware *middleware.SecurityMiddleware, handlers *api.Handle
 			auth.POST("/change-password", middleware.Auth(), handlers.ChangePassword)
 		}
 
+		// QR Code routes (some public for scanning)
+		qr := v1.Group("/qr")
+		{
+			// Public QR scanning (no auth required for mobile apps)
+			qr.POST("/scan", handlers.ScanQR)
+			qr.GET("/track/:number", handlers.TrackOrder) // Public order tracking
+			
+			// Protected QR operations
+			qr.POST("/products/:id/generate", middleware.Auth(), middleware.RequirePermission("products", "update"), handlers.GenerateProductQR)
+			qr.POST("/customers/:id/generate", middleware.Auth(), middleware.RequirePermission("customers", "update"), handlers.GenerateCustomerQR)
+			qr.GET("/scan-history", middleware.Auth(), middleware.AdminOnly(), handlers.GetQRScanHistory)
+		}
+
+		// Shopping Cart routes (supports both auth and guest users)
+		cart := v1.Group("/cart")
+		{
+			cart.POST("/add", handlers.AddToCart)           // Auth optional
+			cart.GET("", handlers.GetCart)                  // Auth optional
+			cart.PUT("/:id", handlers.UpdateCartItem)       // Auth optional
+			cart.DELETE("/:id", handlers.RemoveFromCart)    // Auth optional
+			cart.DELETE("", handlers.ClearCart)             // Auth optional
+		}
+
+		// Online Orders routes
+		orders := v1.Group("/orders")
+		{
+			// Public order creation and tracking
+			orders.POST("", handlers.CreateOnlineOrder)                    // Auth optional (guest orders)
+			orders.GET("/track/:number", handlers.TrackOrder)              // Public tracking
+			orders.GET("/number/:number", handlers.GetOnlineOrderByNumber) // Public lookup
+			
+			// Protected order management
+			protected := orders.Group("")
+			protected.Use(middleware.Auth())
+			{
+				protected.GET("", handlers.GetOnlineOrders)                              // List orders
+				protected.GET("/:id", handlers.GetOnlineOrder)                          // Get specific order
+				protected.PUT("/:id/status", middleware.RequirePermission("sales", "update"), handlers.UpdateOrderStatus) // Update status
+				protected.GET("/customer/:customer_id", middleware.RequirePermission("customers", "read"), handlers.GetCustomerOnlineOrders) // Customer orders
+			}
+		}
+
 		// Protected routes
 		protected := v1.Group("")
 		protected.Use(middleware.Auth())
@@ -253,7 +295,7 @@ func setupRouter(middleware *middleware.SecurityMiddleware, handlers *api.Handle
 				products.GET("/expiring", middleware.RequirePermission("products", "read"), handlers.GetExpiringProducts)
 			}
 
-			// Sales management
+			// Sales management (POS sales)
 			sales := protected.Group("/sales")
 			{
 				sales.GET("", middleware.RequirePermission("sales", "read"), handlers.GetSales)

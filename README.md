@@ -1,287 +1,362 @@
-# Pharmacy Management System - Backend
+# Secure Pharmacy Management Backend
 
-A comprehensive backend implementation for a pharmacy management system built with TypeScript. This backend supports all the features visible in the UI components including analytics, customer management, inventory management, and sales tracking.
+A production-ready, secure backend API for pharmacy management systems built with Go, featuring comprehensive security measures, HIPAA compliance, and medical data encryption.
+
+## 🛡️ Security Features
+
+- **Authentication & Authorization**: JWT-based authentication with role-based access control
+- **Medical Data Encryption**: AES-256-GCM encryption for sensitive patient information
+- **Rate Limiting**: Configurable rate limiting to prevent abuse
+- **Audit Logging**: Comprehensive audit trails for compliance
+- **CORS Protection**: Configurable CORS policies
+- **Input Validation**: SQL injection and XSS protection
+- **Account Security**: Account lockout after failed login attempts
+- **Session Management**: Token blacklisting and session invalidation
+- **HIPAA Compliance**: Medical data handling compliance features
 
 ## 🏗️ Architecture
 
-The backend is organized into several service layers:
-
-### Core Services
-
-1. **AnalyticsService** - Business intelligence and reporting
-2. **CustomerService** - Customer management and medical records
-3. **InventoryService** - Product and stock management
-4. **SalesService** - Transaction processing and sales reporting
-5. **InventoryAnalyticsService** - Advanced inventory analytics and movement analysis
-
-### Data Layer
-
-- **Types** (`src/types.ts`) - Comprehensive TypeScript interfaces
-- **Mock Data** (`src/data/mockData.ts`) - Realistic sample data for development
-
-## 📊 Features
-
-### Analytics & Reporting
-- Sales analytics with time range filtering
-- Customer segmentation and behavior analysis
-- Product performance tracking
-- Revenue, profit, and growth metrics
-- AI-powered insights and forecasting
-- Interactive dashboard data
-
-### Customer Management
-- Complete customer CRUD operations
-- Medical history and allergy tracking
-- Insurance information management
-- Purchase history and loyalty points
-- QR code generation for customers
-- Drug interaction and allergy warnings
-- Customer search and advanced filtering
-
-### Inventory Management
-- Product management for both drugs and grocery items
-- Real-time stock level monitoring
-- Low stock and expiry alerts
-- Batch number and expiry date tracking
-- Drug-specific information (dosage, interactions, contraindications)
-- Stock movement tracking
-- Automated reorder recommendations
-
-### Sales & Transactions
-- Point-of-sale transaction processing
-- Multiple payment method support
-- Prescription management
-- Sales reporting and analytics
-- Refund processing
-- Daily, weekly, and monthly sales trends
-
-### Advanced Inventory Analytics
-- Product movement analysis (fast/medium/slow/dead stock)
-- Turnover rate calculations
-- Velocity scoring
-- Reorder point optimization
-- Category-wise performance analysis
-
-## 🔧 API Overview
-
-### Analytics Service
-
-```typescript
-// Get sales analytics for dashboard
-AnalyticsService.getSalesAnalytics(timeRange: string): AnalyticsMetrics
-
-// Get customer analytics
-AnalyticsService.getCustomerAnalytics(): CustomerAnalytics
-
-// Get product performance data
-AnalyticsService.getProductPerformance(): ProductPerformance[]
+```
+pharmacy-backend/
+├── cmd/server/           # Application entry point
+├── internal/
+│   ├── api/             # HTTP handlers
+│   ├── auth/            # Authentication service
+│   ├── config/          # Configuration management
+│   ├── database/        # Database migrations
+│   ├── middleware/      # Security middleware
+│   ├── models/          # Data models
+│   └── utils/           # Utility functions
+├── docker/              # Docker configuration
+├── migrations/          # Database migrations
+└── docs/               # API documentation
 ```
 
-### Customer Service
+## 🚀 Quick Start
 
-```typescript
-// Customer CRUD operations
-CustomerService.createCustomer(customerData): Promise<Customer>
-CustomerService.updateCustomer(id, updates): Promise<Customer | null>
-CustomerService.getCustomerById(id): Promise<Customer | null>
-CustomerService.deleteCustomer(id): Promise<boolean>
+### Prerequisites
 
-// Advanced customer features
-CustomerService.searchCustomers(filters): Promise<Customer[]>
-CustomerService.getCustomerStats(customerId): Promise<CustomerStats | null>
-CustomerService.getCustomerMedicationInteractions(customerId, newMedication): Promise<string[]>
-CustomerService.getCustomerAllergyWarnings(customerId, productName): Promise<string[]>
-```
-
-### Inventory Service
-
-```typescript
-// Product management
-InventoryService.createProduct(productData): Promise<Product>
-InventoryService.updateProduct(id, updates): Promise<Product | null>
-InventoryService.searchProducts(filters): Promise<Product[]>
-
-// Stock management
-InventoryService.updateStock(productId, quantity, type, reason): Promise<boolean>
-InventoryService.getLowStockProducts(): Promise<Product[]>
-InventoryService.getExpiringProducts(daysAhead): Promise<Product[]>
-InventoryService.getRestockRecommendations(): Promise<RestockRecommendation[]>
-```
-
-### Sales Service
-
-```typescript
-// Transaction processing
-SalesService.createSale(saleData, products): Promise<Sale | null>
-SalesService.refundSale(saleId, reason): Promise<boolean>
-
-// Sales analytics
-SalesService.getSalesSummary(days): Promise<SalesSummary>
-SalesService.generateSalesReport(startDate, endDate): Promise<any>
-SalesService.getPaymentMethodBreakdown(days): Promise<any>
-```
-
-## 📝 Data Models
-
-### Product Interface
-```typescript
-interface Product {
-  id: string;
-  name: string;
-  genericName?: string;
-  category: string;
-  manufacturer: string;
-  dosage?: string;
-  form?: string;
-  price: number;
-  cost: number;
-  stock: number;
-  minStock: number;
-  expiryDate: string;
-  batchNumber: string;
-  prescriptionRequired: boolean;
-  activeIngredient?: string;
-  contraindications: string[];
-  sideEffects: string[];
-  interactions: string[];
-  barcode?: string;
-  productType: 'drug' | 'grocery';
-  unit?: string;
-  brand?: string;
-  description?: string;
-}
-```
-
-### Customer Interface
-```typescript
-interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  dateOfBirth: string;
-  medicalHistory: string[];
-  allergies: string[];
-  currentMedications: string[];
-  insuranceInfo?: string;
-  createdAt: string;
-  qrCode: string;
-}
-```
-
-### Sale Interface
-```typescript
-interface Sale {
-  id: string;
-  customerId?: string;
-  items: SaleItem[];
-  total: number;
-  timestamp: string;
-  paymentMethod: string;
-  prescriptionNumber?: string;
-  pharmacistId?: string;
-  notes?: string;
-}
-```
-
-## 🚀 Getting Started
+- Go 1.21 or higher
+- PostgreSQL 13+
+- Redis 6+
+- Docker & Docker Compose (optional)
 
 ### Installation
 
-1. The backend is implemented as TypeScript services that can be imported directly
-2. All dependencies are standard TypeScript/JavaScript features
-3. Mock data is included for immediate testing
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-org/pharmacy-backend.git
+   cd pharmacy-backend
+   ```
 
-### Usage
+2. **Install dependencies**
+   ```bash
+   go mod download
+   ```
 
-```typescript
-import { 
-  AnalyticsService,
-  CustomerService,
-  InventoryService,
-  SalesService,
-  initializeServices 
-} from './src/services';
+3. **Configure environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
 
-// Services are auto-initialized with mock data
-// You can start using them immediately
+4. **Set up database**
+   ```bash
+   # Create PostgreSQL database
+   createdb pharmacy_db
+   
+   # Start Redis
+   redis-server
+   ```
 
-// Example: Get sales analytics
-const salesData = AnalyticsService.getSalesAnalytics('7d');
+5. **Run the application**
+   ```bash
+   go run cmd/server/main.go
+   ```
 
-// Example: Search products
-const products = await InventoryService.searchProducts({
-  searchTerm: 'paracetamol',
-  lowStock: true
-});
+### Docker Deployment
 
-// Example: Create a new customer
-const newCustomer = await CustomerService.createCustomer({
-  name: 'John Doe',
-  email: 'john@email.com',
-  phone: '+1234567890',
-  dateOfBirth: '1990-01-01',
-  medicalHistory: [],
-  allergies: [],
-  currentMedications: []
-});
+```bash
+# Build and start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f pharmacy-api
+
+# Stop services
+docker-compose down
 ```
 
-## 🔐 Security Features
+## ⚙️ Configuration
 
-- Input validation for all CRUD operations
-- Drug interaction checking
-- Allergy warning system
-- Prescription requirement validation
-- Stock level validation for sales
+### Environment Variables
 
-## 📈 Analytics & Business Intelligence
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | `8080` |
+| `ENVIRONMENT` | Environment mode | `development` |
+| `JWT_SECRET` | JWT signing secret | *required* |
+| `ENCRYPTION_KEY` | AES encryption key (32 chars) | *required* |
+| `DB_HOST` | PostgreSQL host | `localhost` |
+| `DB_PORT` | PostgreSQL port | `5432` |
+| `DB_USER` | Database user | `pharmacy_user` |
+| `DB_PASSWORD` | Database password | *required* |
+| `DB_NAME` | Database name | `pharmacy_db` |
+| `REDIS_URL` | Redis connection URL | `redis://localhost:6379` |
+| `HIPAA_MODE` | Enable HIPAA compliance | `true` |
+| `AUDIT_LOGGING` | Enable audit logging | `true` |
 
-### Key Metrics Tracked
-- Sales revenue and growth trends
-- Customer acquisition and retention
-- Product performance and velocity
-- Inventory turnover rates
-- Profit margins by category
-- Low stock and expiry alerts
+### Security Configuration
 
-### Reporting Capabilities
-- Daily, weekly, monthly sales reports
-- Customer purchase history reports
-- Inventory valuation reports
-- Product movement analysis
-- Profit and loss analysis
+```env
+# Strong JWT secret (32+ characters)
+JWT_SECRET=your-super-secret-jwt-key-32-characters-long
 
-## 🔄 Integration Ready
+# AES encryption key (exactly 32 characters)
+ENCRYPTION_KEY=your-32-character-encryption-key
 
-The backend is designed to be easily integrated with:
+# Rate limiting
+RATE_LIMIT_RPS=10
+RATE_LIMIT_BURST=20
 
-- REST API frameworks (Express.js, Fastify, etc.)
-- Database systems (PostgreSQL, MongoDB, etc.)
-- Real-time features (WebSocket connections)
-- External systems (payment processors, suppliers, etc.)
+# Account security
+MAX_LOGIN_ATTEMPTS=5
+LOGIN_LOCKOUT_MINUTES=15
+```
 
-## 📊 Sample Data
+## 🔐 API Authentication
 
-The system comes with comprehensive sample data including:
+### Login
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "password": "admin123"
+  }'
+```
 
-- **13 Products**: Mix of drugs and grocery items with realistic pharmaceutical data
-- **6 Customers**: With medical histories, allergies, and purchase records
-- **8 Sales Transactions**: Various payment methods and prescription numbers
-- **12 Purchase History Records**: Detailed customer purchase tracking
+### Use Bearer Token
+```bash
+curl -X GET http://localhost:8080/api/v1/customers \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
 
-## 🔮 Future Enhancements
+## 📊 API Endpoints
 
-Potential areas for expansion:
+### Authentication
+- `POST /api/v1/auth/login` - User login
+- `POST /api/v1/auth/refresh` - Refresh token
+- `POST /api/v1/auth/logout` - Logout user
+- `POST /api/v1/auth/change-password` - Change password
 
-- Prescription management system
-- Supplier and purchase order management
-- Integration with insurance systems
-- Barcode scanning support
-- Multi-location inventory tracking
-- Advanced forecasting algorithms
-- Real-time notifications
+### Customer Management
+- `GET /api/v1/customers` - List customers
+- `POST /api/v1/customers` - Create customer
+- `GET /api/v1/customers/:id` - Get customer details
+- `PUT /api/v1/customers/:id` - Update customer
+- `DELETE /api/v1/customers/:id` - Delete customer
 
-## 📝 License
+### Product Management
+- `GET /api/v1/products` - List products
+- `POST /api/v1/products` - Create product
+- `GET /api/v1/products/:id` - Get product details
+- `PUT /api/v1/products/:id` - Update product
+- `DELETE /api/v1/products/:id` - Delete product
+- `GET /api/v1/products/low-stock` - Low stock alerts
+- `GET /api/v1/products/expiring` - Expiring products
 
-This pharmacy management system backend is ready for production use and can be adapted for various pharmacy management needs.
+### Sales Management
+- `GET /api/v1/sales` - List sales
+- `POST /api/v1/sales` - Create sale
+- `GET /api/v1/sales/:id` - Get sale details
+- `POST /api/v1/sales/:id/refund` - Process refund
+
+### Analytics
+- `GET /api/v1/analytics/dashboard` - Dashboard metrics
+- `GET /api/v1/analytics/sales` - Sales analytics
+- `GET /api/v1/analytics/customers` - Customer analytics
+- `GET /api/v1/analytics/inventory-movement` - Inventory analysis
+
+## � User Roles & Permissions
+
+### Admin
+- Full system access
+- User management
+- Audit log access
+- System configuration
+
+### Manager
+- Customer management
+- Product management
+- Sales management
+- Analytics access
+
+### Pharmacist
+- Customer management (limited)
+- Product management (limited)
+- Sales processing
+- Analytics access
+
+### Assistant
+- Read-only access
+- Basic sales operations
+
+## 🔒 Security Best Practices
+
+### Production Deployment
+
+1. **Environment Variables**
+   ```bash
+   # Generate secure keys
+   openssl rand -base64 32  # JWT secret
+   openssl rand -hex 16     # Encryption key
+   ```
+
+2. **Database Security**
+   ```env
+   DB_SSL_MODE=require
+   DB_PASSWORD=strong_database_password
+   ```
+
+3. **SSL/TLS**
+   ```nginx
+   # Use HTTPS in production
+   server {
+       listen 443 ssl;
+       ssl_certificate /path/to/cert.pem;
+       ssl_certificate_key /path/to/key.pem;
+   }
+   ```
+
+4. **Firewall Rules**
+   ```bash
+   # Allow only necessary ports
+   ufw allow 443/tcp
+   ufw allow 80/tcp
+   ufw deny 8080/tcp  # Don't expose API directly
+   ```
+
+### Compliance Features
+
+- **HIPAA Compliance**: Encrypted medical data storage
+- **Audit Logging**: All actions logged with timestamps
+- **Access Control**: Role-based permissions
+- **Data Retention**: Configurable retention policies
+- **Secure Communication**: HTTPS/TLS encryption
+
+## 🧪 Testing
+
+### Unit Tests
+```bash
+go test ./...
+```
+
+### Integration Tests
+```bash
+go test -tags=integration ./...
+```
+
+### API Testing
+```bash
+# Using curl or Postman
+curl -X GET http://localhost:8080/health
+```
+
+## 📋 Default Credentials
+
+**Admin User:**
+- Username: `admin`
+- Password: `admin123`
+- Role: `admin`
+
+**Pharmacist User:**
+- Username: `pharmacist1`
+- Password: `admin123`
+- Role: `pharmacist`
+
+⚠️ **Change default passwords in production!**
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **Database Connection Error**
+   ```bash
+   # Check PostgreSQL service
+   systemctl status postgresql
+   
+   # Test connection
+   psql -h localhost -U pharmacy_user -d pharmacy_db
+   ```
+
+2. **Redis Connection Error**
+   ```bash
+   # Check Redis service
+   systemctl status redis
+   
+   # Test connection
+   redis-cli ping
+   ```
+
+3. **Permission Denied**
+   ```bash
+   # Check user permissions
+   SELECT * FROM users WHERE username = 'your_username';
+   ```
+
+### Logs
+
+```bash
+# View application logs
+docker-compose logs -f pharmacy-api
+
+# View database logs
+docker-compose logs -f postgres
+
+# View Redis logs
+docker-compose logs -f redis
+```
+
+## 📚 Documentation
+
+- [API Documentation](./docs/api.md)
+- [Security Guide](./docs/security.md)
+- [Deployment Guide](./docs/deployment.md)
+- [Contributing Guide](./docs/contributing.md)
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+For support and questions:
+- Create an issue on GitHub
+- Email: support@pharmacy-backend.com
+- Documentation: [docs.pharmacy-backend.com](https://docs.pharmacy-backend.com)
+
+## 🔮 Roadmap
+
+- [ ] Advanced analytics and reporting
+- [ ] Mobile app integration
+- [ ] Prescription management
+- [ ] Insurance integration
+- [ ] Inventory forecasting
+- [ ] Multi-location support
+- [ ] API rate limiting per user
+- [ ] Automated backups
+- [ ] Compliance reports
+- [ ] Drug interaction checking
+
+---
+
+**⚠️ Security Notice**: This is a medical application handling sensitive patient data. Always follow proper security practices and comply with local healthcare regulations.

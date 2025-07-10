@@ -1,4 +1,4 @@
-import { Product, Sale, Customer, CustomerPurchaseHistory } from '../types';
+import { Product, Sale, Customer, CustomerPurchaseHistory, AnalyticsMetrics, CustomerAnalytics, ProductPerformance } from '../types';
 
 export interface AnalyticsData {
   totalRevenue: number;
@@ -61,6 +61,69 @@ export interface SalesForecast {
 }
 
 export class AnalyticsService {
+  static getSalesAnalytics(timeRange: string): AnalyticsMetrics {
+    // In a real app, this would filter based on timeRange and fetch from API
+    // For now, using mock data with simulated analytics
+    
+    const dailySales = [
+      { date: '2024-01-15', sales: 850, orders: 12, revenue: 2150 },
+      { date: '2024-01-16', sales: 920, orders: 14, revenue: 2380 },
+      { date: '2024-01-17', sales: 780, orders: 11, revenue: 1950 },
+      { date: '2024-01-18', sales: 1050, orders: 16, revenue: 2650 },
+      { date: '2024-01-19', sales: 890, orders: 13, revenue: 2200 },
+      { date: '2024-01-20', sales: 1200, orders: 18, revenue: 3100 },
+      { date: '2024-01-21', sales: 950, orders: 15, revenue: 2450 },
+    ];
+
+    const totalRevenue = dailySales.reduce((sum, day) => sum + day.revenue, 0);
+    const totalOrders = dailySales.reduce((sum, day) => sum + day.orders, 0);
+    const averageOrderValue = totalRevenue / totalOrders;
+
+    return {
+      totalRevenue,
+      totalOrders,
+      averageOrderValue: Math.round(averageOrderValue * 100) / 100,
+      revenueGrowth: 12.5,
+      orderGrowth: 8.2,
+      aovChange: 3.8,
+      conversionRate: 65.4,
+      conversionChange: 2.1,
+      returnRate: 2.8,
+      returnRateChange: -0.5,
+      dailySales
+    };
+  }
+
+  static getCustomerAnalytics(): CustomerAnalytics {
+    return {
+      activeCustomers: 1248,
+      customerGrowth: 5.1,
+      avgSessionDuration: '4m 32s',
+      sessionDurationChange: 8.3,
+      segments: [
+        { name: 'VIP Customers', value: 15 },
+        { name: 'Regular Customers', value: 45 },
+        { name: 'New Customers', value: 25 },
+        { name: 'Inactive', value: 15 }
+      ]
+    };
+  }
+
+  static getProductPerformance(): ProductPerformance[] {
+    return [
+      { name: 'Paracetamol', unitsSold: 145, revenue: 3697.50, category: 'Pain Relief' },
+      { name: 'Metformin', unitsSold: 89, revenue: 10680.00, category: 'Diabetes' },
+      { name: 'Vitamin C', unitsSold: 132, revenue: 4620.00, category: 'Vitamins' },
+      { name: 'Cetirizine', unitsSold: 78, revenue: 3510.00, category: 'Allergy' },
+      { name: 'Hand Sanitizer', unitsSold: 95, revenue: 6175.00, category: 'Personal Care' },
+      { name: 'Lisinopril', unitsSold: 67, revenue: 6365.00, category: 'Cardiovascular' },
+      { name: 'Face Masks', unitsSold: 245, revenue: 6125.00, category: 'Medical Supplies' },
+      { name: 'Omeprazole', unitsSold: 45, revenue: 4950.00, category: 'Gastric' },
+      { name: 'Amoxicillin', unitsSold: 38, revenue: 3230.00, category: 'Antibiotics' },
+      { name: 'Salbutamol Inhaler', unitsSold: 28, revenue: 5040.00, category: 'Respiratory' }
+    ];
+  }
+
   static generateAnalytics(
     products: Product[],
     sales: Sale[],

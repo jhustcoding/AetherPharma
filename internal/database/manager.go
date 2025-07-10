@@ -300,7 +300,12 @@ func (dm *DatabaseManager) syncTable(source, target *gorm.DB, model interface{})
 	// like incremental sync, conflict resolution, etc.
 	
 	// Get the table name
-	tableName := target.Statement.Parse(model).Schema.Table
+	stmt := &gorm.Statement{DB: target}
+	err := stmt.Parse(model)
+	if err != nil {
+		return fmt.Errorf("failed to parse model: %w", err)
+	}
+	tableName := stmt.Schema.Table
 
 	// Clear target table (be careful with this in production!)
 	if err := target.Exec(fmt.Sprintf("TRUNCATE TABLE %s CASCADE", tableName)).Error; err != nil {

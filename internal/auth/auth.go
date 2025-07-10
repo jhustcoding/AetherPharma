@@ -143,7 +143,7 @@ func (s *AuthService) Login(ctx context.Context, req LoginRequest, clientIP, use
 func (s *AuthService) Logout(ctx context.Context, userID uuid.UUID, sessionID string) error {
 	// Add tokens to blacklist
 	key := fmt.Sprintf("blacklist:session:%s", sessionID)
-	expiration := time.Duration(s.config.JWTExpirationHours) * time.Hour
+	expiration := time.Duration(s.config.Security.JWTExpirationHours) * time.Hour
 	
 	if err := s.redis.Set(ctx, key, "1", expiration).Err(); err != nil {
 		return fmt.Errorf("failed to blacklist session: %w", err)
@@ -193,7 +193,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*L
 
 	// Blacklist old refresh token
 	key := fmt.Sprintf("blacklist:session:%s", claims.SessionID)
-	expiration := time.Duration(s.config.JWTExpirationHours) * time.Hour
+	expiration := time.Duration(s.config.Security.JWTExpirationHours) * time.Hour
 	if err := s.redis.Set(ctx, key, "1", expiration).Err(); err != nil {
 		s.logger.WithError(err).Error("Failed to blacklist old refresh token")
 	}
@@ -230,7 +230,7 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, req 
 	}
 
 	// Hash new password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), s.config.BCryptCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), s.config.Security.BCryptCost)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
@@ -295,7 +295,7 @@ func (s *AuthService) CheckPermission(userRole models.UserRole, resource string,
 func (s *AuthService) generateTokens(user *models.User) (accessToken, refreshToken string, expiresIn int, err error) {
 	sessionID := uuid.New().String()
 	now := time.Now()
-	expiresIn = s.config.JWTExpirationHours * 3600
+	expiresIn = s.config.Security.JWTExpirationHours * 3600
 
 	// Access token claims
 	accessClaims := JWTClaims{
@@ -305,7 +305,7 @@ func (s *AuthService) generateTokens(user *models.User) (accessToken, refreshTok
 		Role:      user.Role,
 		SessionID: sessionID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(s.config.JWTExpirationHours) * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(s.config.Security.JWTExpirationHours) * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 			Issuer:    "pharmacy-backend",
@@ -315,7 +315,7 @@ func (s *AuthService) generateTokens(user *models.User) (accessToken, refreshTok
 
 	// Generate access token
 	accessTokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
-	accessToken, err = accessTokenObj.SignedString([]byte(s.config.JWTSecret))
+	accessToken, err = accessTokenObj.SignedString([]byte(s.config.Security.JWTSecret))
 	if err != nil {
 		return "", "", 0, err
 	}
@@ -328,7 +328,7 @@ func (s *AuthService) generateTokens(user *models.User) (accessToken, refreshTok
 		Role:      user.Role,
 		SessionID: sessionID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(s.config.JWTExpirationHours*7) * time.Hour)), // 7x longer
+			ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(s.config.Security.JWTExpirationHours*7) * time.Hour)), // 7x longer
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 			Issuer:    "pharmacy-backend",
@@ -338,7 +338,7 @@ func (s *AuthService) generateTokens(user *models.User) (accessToken, refreshTok
 
 	// Generate refresh token
 	refreshTokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-	refreshToken, err = refreshTokenObj.SignedString([]byte(s.config.JWTSecret))
+	refreshToken, err = refreshTokenObj.SignedString([]byte(s.config.Security.JWTSecret))
 	if err != nil {
 		return "", "", 0, err
 	}
@@ -351,7 +351,7 @@ func (s *AuthService) validateToken(tokenString string) (*JWTClaims, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte(s.config.JWTSecret), nil
+		return []byte(s.config.Security.JWTSecret), nil
 	})
 
 	if err != nil {
@@ -374,8 +374,8 @@ func (s *AuthService) incrementFailedLoginAttempts(ctx context.Context, user *mo
 	user.FailedLoginAttempts++
 
 	// Lock account if too many failed attempts
-	if user.FailedLoginAttempts >= s.config.MaxLoginAttempts {
-		lockDuration := time.Duration(s.config.LoginLockoutMinutes) * time.Minute
+	if user.FailedLoginAttempts >= s.config.Security.MaxLoginAttempts {
+		lockDuration := time.Duration(s.config.Security.LoginLockoutMinutes) * time.Minute
 		lockUntil := time.Now().Add(lockDuration)
 		user.LockedUntil = &lockUntil
 

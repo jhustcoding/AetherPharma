@@ -55,9 +55,13 @@ type RedisConfig struct {
 }
 
 type SecurityConfig struct {
-	EncryptionKey string
-	JWTSecret     string
-	JWTExpiration time.Duration
+	EncryptionKey        string
+	JWTSecret           string
+	JWTExpiration       time.Duration
+	JWTExpirationHours  int
+	BCryptCost          int
+	MaxLoginAttempts    int
+	LoginLockoutMinutes int
 }
 
 type CORSConfig struct {
@@ -184,9 +188,13 @@ func LoadConfig() (*Config, error) {
 			SSL:      getEnvAsBool("REDIS_SSL", false),
 		},
 		Security: SecurityConfig{
-			EncryptionKey: getEnv("ENCRYPTION_KEY", ""),
-			JWTSecret:     getEnv("JWT_SECRET", ""),
-			JWTExpiration: time.Duration(getEnvAsInt("JWT_EXPIRATION", 3600)) * time.Second,
+			EncryptionKey:        getEnv("ENCRYPTION_KEY", ""),
+			JWTSecret:           getEnv("JWT_SECRET", ""),
+			JWTExpiration:       time.Duration(getEnvAsInt("JWT_EXPIRATION", 3600)) * time.Second,
+			JWTExpirationHours:  getEnvAsInt("JWT_EXPIRATION_HOURS", 24),
+			BCryptCost:          getEnvAsInt("BCRYPT_COST", 12),
+			MaxLoginAttempts:    getEnvAsInt("MAX_LOGIN_ATTEMPTS", 5),
+			LoginLockoutMinutes: getEnvAsInt("LOGIN_LOCKOUT_MINUTES", 15),
 		},
 		CORS: CORSConfig{
 			AllowedOrigins: parseCommaSeparated(getEnv("CORS_ALLOWED_ORIGINS", "*")),

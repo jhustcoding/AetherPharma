@@ -1,0 +1,51 @@
+# TrueNAS Custom App Configuration for Nginx Proxy
+# This will make the app accessible at http://aetherpharma
+
+appName: aetherpharma-proxy
+image:
+  repository: nginx
+  tag: alpine
+  
+service:
+  main:
+    ports:
+      http:
+        port: 80
+
+configmap:
+  config:
+    enabled: true
+    data:
+      default.conf: |
+        server {
+            listen 80;
+            server_name aetherpharma;
+            
+            location / {
+                proxy_pass http://YOUR-TRUENAS-IP:30000;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+            
+            location /api {
+                proxy_pass http://YOUR-TRUENAS-IP:30080;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+        }
+
+persistence:
+  config:
+    enabled: true
+    type: configMap
+    objectName: aetherpharma-proxy-config
+    mountPath: /etc/nginx/conf.d
+    
+ingress:
+  main:
+    enabled: true
+    hosts:
+      - host: aetherpharma
+        paths:
+          - path: /
+            pathType: Prefix

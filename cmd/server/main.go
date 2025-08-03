@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,8 +20,9 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 func main() {
@@ -31,7 +31,7 @@ func main() {
 	logger.SetFormatter(&logrus.JSONFormatter{})
 	
 	// Load configuration
-	cfg, err := config.Load()
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		logger.WithError(err).Fatal("Failed to load configuration")
 	}
@@ -48,7 +48,7 @@ func main() {
 	logger.WithField("environment", cfg.Environment).Info("Starting pharmacy backend server")
 
 	// Initialize encryption
-	if err := utils.InitializeEncryption(cfg.EncryptionKey); err != nil {
+	if err := utils.InitializeEncryption(cfg.Security.EncryptionKey); err != nil {
 		logger.WithError(err).Fatal("Failed to initialize encryption")
 	}
 
@@ -80,15 +80,15 @@ func main() {
 
 	// Create HTTP server
 	server := &http.Server{
-		Addr:         ":" + cfg.Port,
+		Addr:         ":" + cfg.Server.Port,
 		Handler:      router,
-		ReadTimeout:  cfg.ReadTimeout,
-		WriteTimeout: cfg.WriteTimeout,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
 	}
 
 	// Start server in a goroutine
 	go func() {
-		logger.WithField("port", cfg.Port).Info("Starting HTTP server")
+		logger.WithField("port", cfg.Server.Port).Info("Starting HTTP server")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.WithError(err).Fatal("Failed to start server")
 		}
@@ -114,15 +114,34 @@ func main() {
 
 func connectDatabase(cfg *config.Config, logger *logrus.Logger) (*gorm.DB, error) {
 	// Configure GORM logger
-	gormLogger := logger.New()
+	var gormLogger gormlogger.Interface
 	if cfg.IsDevelopment() {
-		gormLogger.SetLevel(logger.Info)
+		gormLogger = gormlogger.Default.LogMode(gormlogger.Info)
 	} else {
-		gormLogger.SetLevel(logger.Warn)
+		gormLogger = gormlogger.Default.LogMode(gormlogger.Warn)
 	}
 
-	// Open database connection
-	db, err := gorm.Open(postgres.Open(cfg.GetDatabaseDSN()), &gorm.Config{
+	var db *gorm.DB
+	var err error
+
+	// Use SQLite for development if PostgreSQL is not available
+	if cfg.IsDevelopment() && (cfg.Database.Host == "localhost" || cfg.Database.Host == "") {
+		// Try SQLite for local development
+		db, err = gorm.Open(sqlite.Open("pharmacy.db"), &gorm.Config{
+			Logger: gormLogger,
+			NowFunc: func() time.Time {
+				return time.Now().UTC()
+			},
+		})
+		if err == nil {
+			logger.Info("Successfully connected to SQLite database")
+			return db, nil
+		}
+		logger.WithError(err).Warn("Failed to connect to SQLite, trying PostgreSQL")
+	}
+
+	// Open PostgreSQL database connection
+	db, err = gorm.Open(postgres.Open(cfg.GetPrimaryDSN()), &gorm.Config{
 		Logger: gormLogger,
 		NowFunc: func() time.Time {
 			return time.Now().UTC()
@@ -153,15 +172,17 @@ func connectDatabase(cfg *config.Config, logger *logrus.Logger) (*gorm.DB, error
 }
 
 func connectRedis(cfg *config.Config, logger *logrus.Logger) *redis.Client {
-	opts, err := redis.ParseURL(cfg.RedisURL)
+	// Build Redis URL
+	redisURL := fmt.Sprintf("redis://%s:%s/%d", cfg.Redis.Host, cfg.Redis.Port, cfg.Redis.DB)
+	
+	opts, err := redis.ParseURL(redisURL)
 	if err != nil {
 		logger.WithError(err).Fatal("Failed to parse Redis URL")
 	}
 
-	if cfg.RedisPassword != "" {
-		opts.Password = cfg.RedisPassword
+	if cfg.Redis.Password != "" {
+		opts.Password = cfg.Redis.Password
 	}
-	opts.DB = cfg.RedisDB
 
 	client := redis.NewClient(opts)
 
@@ -170,6 +191,10 @@ func connectRedis(cfg *config.Config, logger *logrus.Logger) *redis.Client {
 	defer cancel()
 
 	if err := client.Ping(ctx).Err(); err != nil {
+		if cfg.IsDevelopment() {
+			logger.WithError(err).Warn("Failed to connect to Redis (development mode, continuing without Redis)")
+			return nil
+		}
 		logger.WithError(err).Fatal("Failed to connect to Redis")
 	}
 
@@ -211,6 +236,7 @@ func setupRouter(middleware *middleware.SecurityMiddleware, handlers *api.Handle
 			auth.POST("/refresh", handlers.RefreshToken)
 			auth.POST("/logout", middleware.Auth(), handlers.Logout)
 			auth.POST("/change-password", middleware.Auth(), handlers.ChangePassword)
+			auth.POST("/create-test-user", handlers.CreateTestUser) // Development only
 		}
 
 		// QR Code routes (some public for scanning)
@@ -236,6 +262,9 @@ func setupRouter(middleware *middleware.SecurityMiddleware, handlers *api.Handle
 			cart.DELETE("", handlers.ClearCart)             // Auth optional
 		}
 
+		// Public Products browsing (for ordering system)
+		v1.GET("/products/browse", handlers.GetProducts) // Public product browsing
+
 		// Online Orders routes
 		orders := v1.Group("/orders")
 		{
@@ -259,6 +288,8 @@ func setupRouter(middleware *middleware.SecurityMiddleware, handlers *api.Handle
 		protected := v1.Group("")
 		protected.Use(middleware.Auth())
 		{
+			// Test endpoint for debugging auth issues
+			protected.GET("/test", handlers.TestEndpoint)
 			// User management (admin only)
 			users := protected.Group("/users")
 			users.Use(middleware.AdminOnly())
@@ -280,6 +311,7 @@ func setupRouter(middleware *middleware.SecurityMiddleware, handlers *api.Handle
 				customers.DELETE("/:id", middleware.RequirePermission("customers", "delete"), handlers.DeleteCustomer)
 				customers.GET("/:id/history", middleware.RequirePermission("customers", "read"), handlers.GetCustomerPurchaseHistory)
 				customers.GET("/:id/interactions/:medication", middleware.RequirePermission("customers", "read"), handlers.CheckMedicationInteractions)
+				customers.POST("/:id/upload-id", middleware.RequirePermission("customers", "update"), handlers.UploadCustomerID)
 			}
 
 			// Product/Inventory management
@@ -293,6 +325,27 @@ func setupRouter(middleware *middleware.SecurityMiddleware, handlers *api.Handle
 				products.POST("/:id/stock", middleware.RequirePermission("products", "update"), handlers.UpdateStock)
 				products.GET("/low-stock", middleware.RequirePermission("products", "read"), handlers.GetLowStockProducts)
 				products.GET("/expiring", middleware.RequirePermission("products", "read"), handlers.GetExpiringProducts)
+			}
+
+			// Supplier management
+			suppliers := protected.Group("/suppliers")
+			{
+				suppliers.GET("", middleware.RequirePermission("products", "read"), handlers.GetSuppliers)
+				suppliers.POST("", middleware.RequirePermission("products", "create"), handlers.CreateSupplier)
+				suppliers.GET("/:id", middleware.RequirePermission("products", "read"), handlers.GetSupplier)
+				suppliers.PUT("/:id", middleware.RequirePermission("products", "update"), handlers.UpdateSupplier)
+				suppliers.DELETE("/:id", middleware.RequirePermission("products", "delete"), handlers.DeleteSupplier)
+			}
+
+			// Service management (medical services)
+			services := protected.Group("/services")
+			{
+				services.GET("", middleware.RequirePermission("products", "read"), handlers.GetServices)
+				services.POST("", middleware.RequirePermission("products", "create"), handlers.CreateService)
+				services.GET("/:id", middleware.RequirePermission("products", "read"), handlers.GetService)
+				services.PUT("/:id", middleware.RequirePermission("products", "update"), handlers.UpdateService)
+				services.DELETE("/:id", middleware.RequirePermission("products", "delete"), handlers.DeleteService)
+				services.GET("/categories", middleware.RequirePermission("products", "read"), handlers.GetServiceCategories)
 			}
 
 			// Sales management (POS sales)
@@ -314,6 +367,7 @@ func setupRouter(middleware *middleware.SecurityMiddleware, handlers *api.Handle
 				analytics.GET("/inventory-movement", handlers.GetInventoryMovementAnalysis)
 				analytics.GET("/sales", handlers.GetSalesAnalytics)
 				analytics.GET("/customers", handlers.GetCustomerAnalytics)
+				analytics.GET("/discounts", handlers.GetDiscountAnalytics)
 			}
 
 			// Audit logs (admin only)

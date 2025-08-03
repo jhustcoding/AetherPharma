@@ -29,13 +29,15 @@ type OnlineOrder struct {
 	Tax             float64 `gorm:"not null;type:decimal(10,2);default:0" json:"tax"`
 	DeliveryFee     float64 `gorm:"not null;type:decimal(10,2);default:0" json:"delivery_fee"`
 	Discount        float64 `gorm:"not null;type:decimal(10,2);default:0" json:"discount"`
+	DiscountType    string  `gorm:"size:50" json:"discount_type"` // "senior_citizen", "pwd", "regular", etc.
+	DiscountPercent float64 `gorm:"type:decimal(5,2);default:0" json:"discount_percent"` // Store the discount percentage applied
 	Total           float64 `gorm:"not null;type:decimal(10,2)" json:"total" validate:"required,gt=0"`
 	
 	// Payment Information
-	PaymentMethod   string     `gorm:"size:50" json:"payment_method"`
-	PaymentStatus   string     `gorm:"size:50;default:'pending'" json:"payment_status"`
-	PaymentReference *string   `gorm:"size:100" json:"payment_reference"`
-	PaidAt          *time.Time `json:"paid_at"`
+	PaymentMethod   PaymentMethod `gorm:"size:50" json:"payment_method"`
+	PaymentStatus   PaymentStatus `gorm:"size:50;default:'pending'" json:"payment_status"`
+	PaymentReference *string      `gorm:"size:100" json:"payment_reference"`
+	PaidAt          *time.Time    `json:"paid_at"`
 	
 	// Delivery Information
 	DeliveryAddress    utils.EncryptedString `gorm:"type:text" json:"delivery_address"`
@@ -98,6 +100,27 @@ type OrderType string
 const (
 	OrderTypeDelivery OrderType = "delivery"
 	OrderTypePickup   OrderType = "pickup"
+)
+
+type PaymentMethod string
+
+const (
+	PaymentMethodCash      PaymentMethod = "cash"
+	PaymentMethodCard      PaymentMethod = "card"
+	PaymentMethodGCash     PaymentMethod = "gcash"
+	PaymentMethodMaya      PaymentMethod = "maya"
+	PaymentMethodInsurance PaymentMethod = "insurance"
+	PaymentMethodCOD       PaymentMethod = "cod"
+)
+
+type PaymentStatus string
+
+const (
+	PaymentStatusPending   PaymentStatus = "pending"
+	PaymentStatusPaid      PaymentStatus = "paid"
+	PaymentStatusFailed    PaymentStatus = "failed"
+	PaymentStatusRefunded  PaymentStatus = "refunded"
+	PaymentStatusCancelled PaymentStatus = "cancelled"
 )
 
 // OnlineOrderItem represents items in an online order

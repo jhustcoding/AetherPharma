@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm run build:*)",
+      "Bash(cp:*)",
+      "Bash(ls:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(chmod:*)",
+      "Bash(npm start)",
+      "Bash(curl:*)",
+      "Bash(rm:*)",
+      "Bash(pkill:*)",
+      "Bash(true)",
+      "Bash(npm run lint)",
+      "Bash(npm run dev:*)",
+      "Bash(npm run:*)",
+      "Bash(./run-dev.sh:*)",
+      "Bash(brew install:*)",
+      "Bash(docker:*)",
+      "Bash(npm init:*)",
+      "Bash(mkdir:*)",
+      "Bash(find:*)",
+      "Bash(./test-setup.sh:*)",
+      "Bash(hdiutil attach:*)",
+      "Bash(hdiutil detach:*)",
+      "Bash(open:*)",
+      "Bash(/Applications/Docker.app/Contents/Resources/bin/docker --version)",
+      "Bash(/Applications/Docker.app/Contents/Resources/bin/docker-compose up -d)",
+      "Bash(/Applications/Docker.app/Contents/Resources/bin/docker compose up -d)",
+      "Bash(/Applications/Docker.app/Contents/Resources/bin/docker ps)",
+      "Bash(go:*)",
+      "Bash(sudo tar:*)",
+      "Bash(/usr/local/go/bin/go:*)",
+      "Bash(./pharmacy-backend)",
+      "Bash(sqlite3:*)",
+      "Bash(./start.sh:*)"
+    ],
+    "deny": []
+  }
+}

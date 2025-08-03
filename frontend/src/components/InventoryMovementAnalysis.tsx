@@ -1,17 +1,78 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Activity, AlertCircle, Package, BarChart3, Zap, Clock } from 'lucide-react';
 import { InventoryAnalyticsService, ProductMovementAnalysis } from '../services/inventoryAnalytics';
-import { mockProducts, mockSales } from '../data/mockData';
 
 const InventoryMovementAnalysis: React.FC = () => {
   const [analysis, setAnalysis] = useState<ProductMovementAnalysis[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'fast' | 'medium' | 'slow' | 'dead'>('all');
   const [sortBy, setSortBy] = useState<'turnoverRate' | 'daysOfStock' | 'stockValue'>('turnoverRate');
+  const [products, setProducts] = useState<any[]>([]);
+  const [sales, setSales] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const movementAnalysis = InventoryAnalyticsService.analyzeProductMovement(mockProducts, mockSales);
-    setAnalysis(movementAnalysis);
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      
+      // Get the auth token from localStorage
+      const token = localStorage.getItem('auth_token');
+      
+      if (!token) {
+        console.warn('No auth token found, cannot load movement analysis data');
+        setAnalysis([]);
+        return;
+      }
+
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+      
+      // Load products and sales data from API
+      const [productsResponse, salesResponse] = await Promise.all([
+        fetch('http://localhost:8080/api/v1/products', { headers }),
+        fetch('http://localhost:8080/api/v1/sales', { headers })
+      ]);
+
+      let productsData = [];
+      let salesData = [];
+
+      if (productsResponse.ok) {
+        const productsResult = await productsResponse.json();
+        productsData = productsResult.products || productsResult;
+        setProducts(productsData);
+      } else {
+        console.error('Failed to fetch products:', productsResponse.status);
+      }
+
+      if (salesResponse.ok) {
+        const salesResult = await salesResponse.json();
+        salesData = salesResult.sales || salesResult;
+        setSales(salesData);
+      } else {
+        console.error('Failed to fetch sales:', salesResponse.status);
+        // Don't fail if sales data is not available - products without sales are still valid
+      }
+
+      // Generate movement analysis if we have products
+      if (productsData.length > 0) {
+        const movementAnalysis = InventoryAnalyticsService.analyzeProductMovement(productsData, salesData);
+        setAnalysis(movementAnalysis);
+      } else {
+        // If no products, show message about empty inventory
+        setAnalysis([]);
+      }
+    } catch (error) {
+      console.error('Error loading movement analysis data:', error);
+      setAnalysis([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const summary = InventoryAnalyticsService.getMovementSummary(analysis);
   const topPerformers = InventoryAnalyticsService.getTopPerformers(analysis);
@@ -52,6 +113,33 @@ const InventoryMovementAnalysis: React.FC = () => {
       default: return <Package className="h-4 w-4" />;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Package className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-pulse" />
+            <p className="text-gray-500">Loading movement analysis...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (analysis.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500 text-lg font-medium">No Products Available</p>
+            <p className="text-gray-400 mt-2">Add products to your inventory to see movement analysis.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

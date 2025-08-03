@@ -145,8 +145,10 @@ func (s *AuthService) Logout(ctx context.Context, userID uuid.UUID, sessionID st
 	key := fmt.Sprintf("blacklist:session:%s", sessionID)
 	expiration := time.Duration(s.config.Security.JWTExpirationHours) * time.Hour
 	
-	if err := s.redis.Set(ctx, key, "1", expiration).Err(); err != nil {
-		return fmt.Errorf("failed to blacklist session: %w", err)
+	if s.redis != nil {
+		if err := s.redis.Set(ctx, key, "1", expiration).Err(); err != nil {
+			return fmt.Errorf("failed to blacklist session: %w", err)
+		}
 	}
 
 	s.logger.WithFields(logrus.Fields{
@@ -194,8 +196,10 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*L
 	// Blacklist old refresh token
 	key := fmt.Sprintf("blacklist:session:%s", claims.SessionID)
 	expiration := time.Duration(s.config.Security.JWTExpirationHours) * time.Hour
-	if err := s.redis.Set(ctx, key, "1", expiration).Err(); err != nil {
-		s.logger.WithError(err).Error("Failed to blacklist old refresh token")
+	if s.redis != nil {
+		if err := s.redis.Set(ctx, key, "1", expiration).Err(); err != nil {
+			s.logger.WithError(err).Error("Failed to blacklist old refresh token")
+		}
 	}
 
 	// Remove password hash from response
@@ -397,6 +401,10 @@ func (s *AuthService) resetFailedLoginAttempts(ctx context.Context, user *models
 }
 
 func (s *AuthService) isSessionBlacklisted(ctx context.Context, sessionID string) (bool, error) {
+	if s.redis == nil {
+		return false, nil
+	}
+	
 	key := fmt.Sprintf("blacklist:session:%s", sessionID)
 	result, err := s.redis.Get(ctx, key).Result()
 	if err != nil {

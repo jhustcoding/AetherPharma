@@ -1,0 +1,103 @@
+{
+  "// FRONTEND RULES ENFORCEMENT": "This file defines mandatory scripts and dependencies",
+  
+  "scripts": {
+    "// REQUIRED SCRIPTS": "These scripts must exist and follow PROJECT_RULES.md",
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    
+    "// QUALITY ASSURANCE": "Code quality enforcement",
+    "lint": "eslint src --ext .ts,.tsx --fix",
+    "lint:check": "eslint src --ext .ts,.tsx",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write src/**/*.{ts,tsx,css,md}",
+    "format:check": "prettier --check src/**/*.{ts,tsx,css,md}",
+    
+    "// TESTING": "Testing requirements",
+    "test:coverage": "npm test -- --coverage --watchAll=false",
+    "test:ci": "CI=true npm test -- --coverage --watchAll=false",
+    
+    "// BUILD VARIANTS": "Different build configurations",
+    "build:staging": "REACT_APP_ENV=staging npm run build",
+    "build:production": "REACT_APP_ENV=production npm run build",
+    
+    "// DEVELOPMENT": "Development utilities",
+    "analyze": "npm run build && npx bundle-analyzer build/static/js/*.js",
+    "clean": "rm -rf build node_modules/.cache"
+  },
+  
+  "// MANDATORY DEPENDENCIES": "Core dependencies that must be present",
+  "dependencies": {
+    "react": "^18.x.x",
+    "react-dom": "^18.x.x",
+    "typescript": "^4.x.x || ^5.x.x",
+    "react-hot-toast": "^2.x.x",
+    "lucide-react": "^0.x.x"
+  },
+  
+  "// MANDATORY DEV DEPENDENCIES": "Development dependencies for quality",
+  "devDependencies": {
+    "@types/react": "^18.x.x",
+    "@types/react-dom": "^18.x.x",
+    "eslint": "^8.x.x",
+    "prettier": "^3.x.x",
+    "tailwindcss": "^3.x.x"
+  },
+  
+  "// ESLINT CONFIGURATION": "Code style enforcement",
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ],
+    "rules": {
+      "// TYPESCRIPT RULES": "Strict TypeScript enforcement",
+      "@typescript-eslint/no-unused-vars": "error",
+      "@typescript-eslint/explicit-function-return-type": "warn",
+      "@typescript-eslint/no-explicit-any": "warn",
+      
+      "// REACT RULES": "React best practices",
+      "react-hooks/exhaustive-deps": "error",
+      "react/jsx-key": "error",
+      "react/no-unused-prop-types": "error",
+      
+      "// GENERAL RULES": "Code quality",
+      "no-console": "warn",
+      "no-debugger": "error",
+      "prefer-const": "error"
+    }
+  },
+  
+  "// PRETTIER CONFIGURATION": "Code formatting",
+  "prettier": {
+    "semi": true,
+    "trailingComma": "es5",
+    "singleQuote": true,
+    "printWidth": 80,
+    "tabWidth": 2
+  },
+  
+  "// BROWSERSLIST": "Browser support requirements",
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  
+  "// RULES COMPLIANCE": "Automatic compliance checking",
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run lint:check && npm run type-check",
+      "pre-push": "npm run test:ci"
+    }
+  }
+}

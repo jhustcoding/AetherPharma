@@ -39,7 +39,7 @@ type ProductQRData struct {
 	Name         string    `json:"name"`
 	Price        float64   `json:"price"`
 	BatchNumber  string    `json:"batch_number"`
-	ExpiryDate   time.Time `json:"expiry_date"`
+	ExpiryDate   models.CustomDate `json:"expiry_date"`
 	PrescriptionRequired bool `json:"prescription_required"`
 }
 

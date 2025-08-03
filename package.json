@@ -1,0 +1,27 @@
+{
+  "name": "aetherpharma",
+  "version": "1.0.0",
+  "description": "A production-ready, secure backend API for pharmacy management systems built with Go, featuring comprehensive security measures, HIPAA compliance, and medical data encryption.",
+  "main": "mock-backend.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jhustcoding/AetherPharma.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jhustcoding/AetherPharma/issues"
+  },
+  "homepage": "https://github.com/jhustcoding/AetherPharma#readme",
+  "dependencies": {
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "sequelize": "^6.37.7",
+    "sqlite3": "^5.1.7"
+  }
+}

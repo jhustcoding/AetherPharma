@@ -62,10 +62,14 @@ type SecurityConfig struct {
 	BCryptCost          int
 	MaxLoginAttempts    int
 	LoginLockoutMinutes int
+	RateLimitRPS        int
+	RateLimitBurst      int
 }
 
 type CORSConfig struct {
 	AllowedOrigins []string
+	AllowedMethods []string
+	AllowedHeaders []string
 }
 
 type LoggingConfig struct {
@@ -195,9 +199,13 @@ func LoadConfig() (*Config, error) {
 			BCryptCost:          getEnvAsInt("BCRYPT_COST", 12),
 			MaxLoginAttempts:    getEnvAsInt("MAX_LOGIN_ATTEMPTS", 5),
 			LoginLockoutMinutes: getEnvAsInt("LOGIN_LOCKOUT_MINUTES", 15),
+			RateLimitRPS:        getEnvAsInt("RATE_LIMIT_RPS", 100),
+			RateLimitBurst:      getEnvAsInt("RATE_LIMIT_BURST", 200),
 		},
 		CORS: CORSConfig{
 			AllowedOrigins: parseCommaSeparated(getEnv("CORS_ALLOWED_ORIGINS", "*")),
+			AllowedMethods: parseCommaSeparated(getEnv("CORS_ALLOWED_METHODS", "GET,POST,PUT,DELETE,OPTIONS")),
+			AllowedHeaders: parseCommaSeparated(getEnv("CORS_ALLOWED_HEADERS", "Content-Type,Authorization,X-Requested-With")),
 		},
 		Logging: LoggingConfig{
 			Level:  getEnv("LOG_LEVEL", "info"),

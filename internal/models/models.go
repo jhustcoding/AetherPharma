@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 	
 	"pharmacy-backend/internal/utils"
@@ -15,6 +16,9 @@ import (
 // Alias types for convenience
 type EncryptedString = utils.EncryptedString
 type EncryptedStringArray = utils.EncryptedStringArray
+
+// Import payment types from online_orders.go
+// PaymentMethod and PaymentStatus are defined in online_orders.go
 
 // StringArray for handling PostgreSQL arrays
 type StringArray []string
@@ -42,14 +46,97 @@ func (s StringArray) Value() (driver.Value, error) {
 	return json.Marshal(s)
 }
 
-// Base model with audit fields
+// CustomDate handles both "2006-01-02" and RFC3339 datetime formats
+type CustomDate struct {
+	time.Time
+}
+
+func (cd *CustomDate) UnmarshalJSON(data []byte) error {
+	// Remove quotes from the JSON string
+	str := strings.Trim(string(data), `"`)
+	
+	if str == "" || str == "null" {
+		return nil
+	}
+	
+	// Try parsing as date first (YYYY-MM-DD)
+	if t, err := time.Parse("2006-01-02", str); err == nil {
+		cd.Time = t
+		return nil
+	}
+	
+	// Try parsing as full datetime (RFC3339)
+	if t, err := time.Parse(time.RFC3339, str); err == nil {
+		cd.Time = t
+		return nil
+	}
+	
+	// Try parsing as datetime without timezone
+	if t, err := time.Parse("2006-01-02T15:04:05", str); err == nil {
+		cd.Time = t
+		return nil
+	}
+	
+	return fmt.Errorf("cannot parse date: %s", str)
+}
+
+func (cd CustomDate) MarshalJSON() ([]byte, error) {
+	if cd.Time.IsZero() {
+		return []byte("null"), nil
+	}
+	return json.Marshal(cd.Time.Format("2006-01-02"))
+}
+
+// Value implements the database/sql/driver Valuer interface
+func (cd CustomDate) Value() (driver.Value, error) {
+	if cd.Time.IsZero() {
+		return nil, nil
+	}
+	return cd.Time, nil
+}
+
+// Scan implements the database/sql Scanner interface
+func (cd *CustomDate) Scan(value interface{}) error {
+	if value == nil {
+		cd.Time = time.Time{}
+		return nil
+	}
+	
+	switch v := value.(type) {
+	case time.Time:
+		cd.Time = v
+		return nil
+	case string:
+		// Try parsing as date first (YYYY-MM-DD)
+		if t, err := time.Parse("2006-01-02", v); err == nil {
+			cd.Time = t
+			return nil
+		}
+		// Try parsing as full datetime (RFC3339)
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			cd.Time = t
+			return nil
+		}
+		// Try parsing as datetime without timezone
+		if t, err := time.Parse("2006-01-02T15:04:05", v); err == nil {
+			cd.Time = t
+			return nil
+		}
+		return fmt.Errorf("cannot parse date: %s", v)
+	default:
+		return fmt.Errorf("cannot scan %T into CustomDate", value)
+	}
+}
+
+// Base model with audit fields  
 type BaseModel struct {
-	ID        uuid.UUID  `gorm:"type:uuid;primarykey;default:gen_random_uuid()" json:"id"`
+	ID        uuid.UUID  `gorm:"type:uuid;primarykey" json:"id"`
 	CreatedAt time.Time  `gorm:"not null" json:"created_at"`
 	UpdatedAt time.Time  `gorm:"not null" json:"updated_at"`
 	DeletedAt *time.Time `gorm:"index" json:"deleted_at,omitempty"`
 }
 
+// BeforeCreate hook to generate UUID for new records
 func (base *BaseModel) BeforeCreate(tx *gorm.DB) error {
 	if base.ID == uuid.Nil {
 		base.ID = uuid.New()
@@ -127,6 +214,13 @@ type Customer struct {
 	LoyaltyPoints    int       `gorm:"default:0" json:"loyalty_points"`
 	PreferredContact string    `gorm:"size:20;default:'email'" json:"preferred_contact"`
 	
+	// Discount Eligibility
+	IsSeniorCitizen  bool   `gorm:"default:false" json:"is_senior_citizen"`
+	IsPWD           bool   `gorm:"default:false" json:"is_pwd"`
+	SeniorCitizenID EncryptedString `gorm:"size:100" json:"senior_citizen_id"`
+	PWDId           EncryptedString `gorm:"size:100" json:"pwd_id"`
+	IDDocumentPath  string `gorm:"size:500" json:"id_document_path"` // File path for uploaded ID
+	
 	// Privacy and compliance
 	ConsentDate      *time.Time `json:"consent_date"`
 	DataRetentionDate *time.Time `json:"data_retention_date"`
@@ -171,8 +265,8 @@ type Product struct {
 	
 	// Compliance and Safety
 	BatchNumber          string     `gorm:"not null;size:100" json:"batch_number" validate:"required"`
-	ExpiryDate          time.Time  `gorm:"not null" json:"expiry_date" validate:"required"`
-	ManufactureDate     time.Time  `gorm:"not null" json:"manufacture_date" validate:"required"`
+	ExpiryDate          CustomDate  `gorm:"not null" json:"expiry_date" validate:"required"`
+	ManufactureDate     CustomDate  `gorm:"not null" json:"manufacture_date" validate:"required"`
 	PrescriptionRequired bool       `gorm:"not null;default:false" json:"prescription_required"`
 	ControlledSubstance  bool       `gorm:"not null;default:false" json:"controlled_substance"`
 	FDAApproved         bool       `gorm:"not null;default:true" json:"fda_approved"`
@@ -183,9 +277,13 @@ type Product struct {
 	StorageLocation     string  `gorm:"size:100" json:"storage_location"`
 	
 	// Business Information
-	SupplierID     *uuid.UUID `gorm:"type:uuid" json:"supplier_id"`
+	SupplierID     *uuid.UUID `gorm:"type:uuid" json:"supplier_id"` // Primary supplier (kept for backward compatibility)
 	ReorderLevel   int        `gorm:"default:0" json:"reorder_level"`
 	ReorderQuantity int       `gorm:"default:0" json:"reorder_quantity"`
+	
+	// Therapeutic Classification
+	TherapeuticClassification *string `gorm:"size:255" json:"therapeutic_classification"`
+	DrugType                 *string `gorm:"size:50" json:"drug_type"` // generic or branded
 	
 	// Status
 	IsActive     bool   `gorm:"not null;default:true" json:"is_active"`
@@ -196,6 +294,7 @@ type Product struct {
 	SaleItems       []SaleItem       `gorm:"foreignKey:ProductID" json:"sale_items,omitempty"`
 	StockMovements  []StockMovement  `gorm:"foreignKey:ProductID" json:"stock_movements,omitempty"`
 	PurchaseHistory []PurchaseHistory `gorm:"foreignKey:ProductID" json:"purchase_history,omitempty"`
+	Suppliers       []Supplier       `gorm:"many2many:product_suppliers;" json:"suppliers,omitempty"`
 	
 	// Audit
 	CreatedBy *uuid.UUID `gorm:"type:uuid" json:"created_by,omitempty"`
@@ -223,9 +322,9 @@ type Sale struct {
 	Discount         float64   `gorm:"not null;type:decimal(10,2);default:0" json:"discount"`
 	
 	// Payment Information
-	PaymentMethod    string     `gorm:"not null;size:50" json:"payment_method" validate:"required"`
-	PaymentStatus    string     `gorm:"not null;size:50;default:'completed'" json:"payment_status"`
-	PaymentReference *string    `gorm:"size:100" json:"payment_reference"`
+	PaymentMethod    PaymentMethod `gorm:"not null;size:50" json:"payment_method" validate:"required"`
+	PaymentStatus    PaymentStatus `gorm:"not null;size:50;default:'paid'" json:"payment_status"`
+	PaymentReference *string       `gorm:"size:100" json:"payment_reference"`
 	
 	// Prescription Information
 	PrescriptionNumber *string    `gorm:"size:100" json:"prescription_number"`
@@ -261,15 +360,19 @@ type SaleItem struct {
 	SaleID    uuid.UUID `gorm:"type:uuid;not null;index" json:"sale_id" validate:"required"`
 	Sale      Sale      `gorm:"foreignKey:SaleID" json:"sale,omitempty"`
 	
-	ProductID uuid.UUID `gorm:"type:uuid;not null;index" json:"product_id" validate:"required"`
-	Product   Product   `gorm:"foreignKey:ProductID" json:"product,omitempty"`
+	// Item can be either a product or a service
+	ItemType    string     `gorm:"not null;default:'product'" json:"item_type" validate:"required,oneof=product service"`
+	ProductID   *uuid.UUID `gorm:"type:uuid;index" json:"product_id"`
+	Product     *Product   `gorm:"foreignKey:ProductID" json:"product,omitempty"`
+	ServiceID   *uuid.UUID `gorm:"type:uuid;index" json:"service_id"`
+	Service     *Service   `gorm:"foreignKey:ServiceID" json:"service,omitempty"`
 	
 	Quantity    int     `gorm:"not null" json:"quantity" validate:"required,gt=0"`
 	UnitPrice   float64 `gorm:"not null;type:decimal(10,2)" json:"unit_price" validate:"required,gt=0"`
 	TotalPrice  float64 `gorm:"not null;type:decimal(10,2)" json:"total_price" validate:"required,gt=0"`
 	Discount    float64 `gorm:"not null;type:decimal(10,2);default:0" json:"discount"`
 	
-	// Batch Information for traceability
+	// Batch Information for traceability (only for products)
 	BatchNumber string `gorm:"size:100" json:"batch_number"`
 	ExpiryDate  *time.Time `json:"expiry_date"`
 	
@@ -277,6 +380,12 @@ type SaleItem struct {
 	Dosage      *string `gorm:"size:100" json:"dosage"`
 	Instructions *string `gorm:"type:text" json:"instructions"`
 	Duration    *string `gorm:"size:100" json:"duration"`
+	
+	// Service-specific fields
+	ScheduledDate    *time.Time `json:"scheduled_date,omitempty"`
+	ServiceNotes     *string    `gorm:"type:text" json:"service_notes,omitempty"`
+	PerformedBy      *uuid.UUID `gorm:"type:uuid" json:"performed_by,omitempty"`
+	ServiceCompleted bool       `gorm:"default:false" json:"service_completed"`
 }
 
 // StockMovement model for inventory tracking
@@ -375,6 +484,7 @@ type Supplier struct {
 	BaseModel
 	Name            string `gorm:"not null;size:255" json:"name" validate:"required,max=255"`
 	ContactPerson   string `gorm:"not null;size:255" json:"contact_person" validate:"required,max=255"`
+	AgentName       string `gorm:"size:255" json:"agent_name"`
 	Email           string `gorm:"not null;size:255" json:"email" validate:"required,email"`
 	Phone           string `gorm:"not null;size:20" json:"phone" validate:"required"`
 	
@@ -389,16 +499,85 @@ type Supplier struct {
 	TaxID           *string `gorm:"size:50" json:"tax_id"`
 	LicenseNumber   *string `gorm:"size:100" json:"license_number"`
 	PaymentTerms    string  `gorm:"size:100;default:'NET 30'" json:"payment_terms"`
+	OrderingInstructions string `gorm:"type:text" json:"ordering_instructions"`
 	
 	// Status
 	IsActive        bool    `gorm:"not null;default:true" json:"is_active"`
 	Rating          float32 `gorm:"type:decimal(3,2);default:0" json:"rating"`
 	
 	// Relationships
-	Products        []Product       `gorm:"foreignKey:SupplierID" json:"products,omitempty"`
+	Products        []Product       `gorm:"many2many:product_suppliers;" json:"products,omitempty"`
 	StockMovements  []StockMovement `gorm:"foreignKey:SupplierID" json:"stock_movements,omitempty"`
 	
 	// Audit
 	CreatedBy       *uuid.UUID `gorm:"type:uuid" json:"created_by,omitempty"`
 	UpdatedBy       *uuid.UUID `gorm:"type:uuid" json:"updated_by,omitempty"`
+}
+
+// Service model for medical services offered by the pharmacy
+type Service struct {
+	BaseModel
+	Name            string          `gorm:"not null;size:255" json:"name" validate:"required,max=255"`
+	Code            string          `gorm:"uniqueIndex;not null;size=50" json:"code" validate:"required,max=50"`
+	Description     string          `gorm:"type:text" json:"description"`
+	Category        ServiceCategory `gorm:"not null" json:"category"`
+	Price           float64         `gorm:"type:decimal(10,2);not null" json:"price" validate:"required,min=0"`
+	Duration        int             `gorm:"not null;default:30" json:"duration"` // Duration in minutes
+	
+	// Requirements
+	RequiresAppointment     bool `gorm:"not null;default:false" json:"requires_appointment"`
+	RequiresPrescription    bool `gorm:"not null;default:false" json:"requires_prescription"`
+	RequiresQualifiedStaff  bool `gorm:"not null;default:true" json:"requires_qualified_staff"`
+	
+	// Availability
+	IsActive        bool    `gorm:"not null;default:true" json:"is_active"`
+	MaxDailySlots   int     `gorm:"default:0" json:"max_daily_slots"` // 0 means unlimited
+	
+	// Relationships
+	SaleItems       []SaleItem `gorm:"foreignKey:ServiceID" json:"sale_items,omitempty"`
+	
+	// Audit
+	CreatedBy       *uuid.UUID `gorm:"type:uuid" json:"created_by,omitempty"`
+	UpdatedBy       *uuid.UUID `gorm:"type:uuid" json:"updated_by,omitempty"`
+}
+
+// ServiceCategory represents the category of medical services
+type ServiceCategory string
+
+const (
+	ServiceCategoryVaccination     ServiceCategory = "vaccination"
+	ServiceCategoryHealthScreening ServiceCategory = "health_screening"
+	ServiceCategoryConsultation    ServiceCategory = "consultation"
+	ServiceCategoryLabTest         ServiceCategory = "lab_test"
+	ServiceCategoryWoundCare       ServiceCategory = "wound_care"
+	ServiceCategoryInjection       ServiceCategory = "injection"
+	ServiceCategoryOther           ServiceCategory = "other"
+)
+
+func (s ServiceCategory) IsValid() bool {
+	switch s {
+	case ServiceCategoryVaccination, ServiceCategoryHealthScreening, ServiceCategoryConsultation,
+		 ServiceCategoryLabTest, ServiceCategoryWoundCare, ServiceCategoryInjection, ServiceCategoryOther:
+		return true
+	}
+	return false
+}
+
+// ProductSupplier join table for many-to-many relationship
+type ProductSupplier struct {
+	BaseModel
+	ProductID     uuid.UUID `gorm:"type:uuid;not null;index" json:"product_id"`
+	Product       Product   `gorm:"foreignKey:ProductID" json:"product,omitempty"`
+	
+	SupplierID    uuid.UUID `gorm:"type:uuid;not null;index" json:"supplier_id"`
+	Supplier      Supplier  `gorm:"foreignKey:SupplierID" json:"supplier,omitempty"`
+	
+	// Additional fields for the relationship
+	IsPrimary     bool      `gorm:"default:false" json:"is_primary"`
+	SupplierCode  string    `gorm:"size:100" json:"supplier_code"` // Product code at this supplier
+	LeadTimeDays  int       `gorm:"default:0" json:"lead_time_days"`
+	MinOrderQty   int       `gorm:"default:1" json:"min_order_qty"`
+	Price         float64   `gorm:"type:decimal(10,2)" json:"price"`
+	LastOrderDate *time.Time `json:"last_order_date"`
+	Notes         string    `gorm:"type:text" json:"notes"`
 }

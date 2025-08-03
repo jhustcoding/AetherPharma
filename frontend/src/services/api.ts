@@ -33,18 +33,39 @@ class ApiService {
     });
 
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || `API Error: ${response.status} ${response.statusText}`;
+      
+      // Handle specific error cases
+      if (response.status === 401) {
+        this.clearToken();
+        throw new Error('Authentication failed. Please log in again.');
+      } else if (response.status === 403) {
+        throw new Error('Access denied. Insufficient permissions.');
+      } else if (response.status === 429) {
+        throw new Error('Too many requests. Please try again later.');
+      }
+      
+      throw new Error(errorMessage);
     }
 
     return response.json();
   }
 
   // Authentication
-  async login(email: string, password: string) {
-    return this.request('/auth/login', {
+  async login(username: string, password: string) {
+    const response = await this.request<{
+      access_token: string;
+      refresh_token: string;
+      expires_in: number;
+      user: any;
+    }>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ username, password }),
     });
+    
+    this.setToken(response.access_token);
+    return response;
   }
 
   async logout() {
@@ -91,9 +112,72 @@ class ApiService {
     });
   }
 
+  // Suppliers
+  async getSuppliers(page = 1, limit = 10, search = ''): Promise<any> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      ...(search && { search }),
+    });
+    return this.request(`/suppliers?${params}`);
+  }
+
+  async getSupplier(id: string): Promise<any> {
+    return this.request(`/suppliers/${id}`);
+  }
+
+  async createSupplier(supplier: any): Promise<any> {
+    return this.request('/suppliers', {
+      method: 'POST',
+      body: JSON.stringify(supplier),
+    });
+  }
+
+  async updateSupplier(id: string, supplier: any): Promise<any> {
+    return this.request(`/suppliers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(supplier),
+    });
+  }
+
+  async deleteSupplier(id: string): Promise<void> {
+    return this.request(`/suppliers/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Analytics
   async getDashboardAnalytics() {
-    return this.request('/analytics/dashboard');
+    return this.request<{
+      today_sales: number;
+      total_customers: number;
+      total_products: number;
+      low_stock_alerts: number;
+    }>('/analytics/dashboard');
+  }
+
+  async getInventoryMovementAnalytics() {
+    return this.request<any>('/analytics/inventory-movement');
+  }
+
+  async getSalesAnalytics(timeRange: string = '7d') {
+    return this.request<any>(`/analytics/sales?time_range=${timeRange}`);
+  }
+
+  async getCustomerAnalytics() {
+    return this.request<any>('/analytics/customers');
+  }
+
+  async getDiscountAnalytics() {
+    return this.request<{
+      total_orders: number;
+      senior_citizen_orders: number;
+      pwd_orders: number;
+      total_discount_amount: number;
+      senior_citizen_discount_amount: number;
+      pwd_discount_amount: number;
+      average_discount: number;
+    }>('/analytics/discounts');
   }
 
   // QR Code

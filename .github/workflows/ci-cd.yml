@@ -1,0 +1,252 @@
+name: AetherPharma CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  GO_VERSION: '1.21'
+  NODE_VERSION: '18'
+
+jobs:
+  # 🔍 PROJECT STRUCTURE VALIDATION
+  validate-structure:
+    name: 🏗️ Validate Project Structure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Validate project follows rules
+        run: |
+          chmod +x scripts/validate-project-structure.sh
+          ./scripts/validate-project-structure.sh
+
+  # 🧪 BACKEND TESTING
+  backend-test:
+    name: 🔧 Backend Tests
+    runs-on: ubuntu-latest
+    needs: validate-structure
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: aetherpharma_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      
+      - name: Download dependencies
+        run: go mod download
+      
+      - name: Run linting
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          args: --timeout=5m
+      
+      - name: Run tests
+        env:
+          DATABASE_URL: postgres://postgres:test@localhost:5432/aetherpharma_test?sslmode=disable
+          JWT_SECRET: test-secret-key-for-testing-only
+          ENCRYPTION_KEY: test-encryption-key-32-chars!!!
+        run: |
+          go test -v -race -coverprofile=coverage.out ./...
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.out
+
+  # 🎨 FRONTEND TESTING
+  frontend-test:
+    name: ⚛️ Frontend Tests
+    runs-on: ubuntu-latest
+    needs: validate-structure
+    
+    defaults:
+      run:
+        working-directory: frontend
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run linting
+        run: npm run lint
+      
+      - name: Run type checking
+        run: npm run type-check
+      
+      - name: Run tests
+        run: npm test -- --coverage --watchAll=false
+      
+      - name: Build frontend
+        run: npm run build
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-build
+          path: frontend/build/
+
+  # 🔐 SECURITY SCANNING
+  security-scan:
+    name: 🛡️ Security Scanning
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # 🐳 BUILD DOCKER IMAGES
+  build-images:
+    name: 🐳 Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test, security-scan]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: aetherpharma/backend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+      
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # 🚀 DEPLOY TO STAGING
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-images
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to staging
+        run: |
+          echo "🚀 Deploying to staging environment..."
+          # Add your staging deployment commands here
+          # Example: kubectl apply, docker-compose, or cloud provider CLI
+      
+      - name: Run health checks
+        run: |
+          echo "🏥 Running health checks..."
+          # Add health check commands here
+          # curl -f https://staging.aetherpharma.com/health
+
+  # 🌟 DEPLOY TO PRODUCTION
+  deploy-production:
+    name: 🌟 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-images
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to production
+        run: |
+          echo "🌟 Deploying to production environment..."
+          # Add your production deployment commands here
+      
+      - name: Run health checks
+        run: |
+          echo "🏥 Running production health checks..."
+          # Add production health check commands here
+      
+      - name: Notify team
+        if: success()
+        run: |
+          echo "✅ Production deployment successful!"
+          # Add notification logic (Slack, email, etc.)
+
+  # 📊 POST-DEPLOYMENT MONITORING
+  monitoring:
+    name: 📊 Post-Deployment Monitoring
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    
+    steps:
+      - name: Setup monitoring alerts
+        run: |
+          echo "📊 Setting up post-deployment monitoring..."
+          # Add monitoring setup commands here
+      
+      - name: Validate deployment metrics
+        run: |
+          echo "📈 Validating deployment metrics..."
+          # Add metrics validation commands here

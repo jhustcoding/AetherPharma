@@ -1,0 +1,79 @@
+# AetherPharma .gitignore - Enforces Project Rules
+
+# 🗂️ Archive directory (preserve structure but ignore files)
+archive/**/*
+!archive/README.md
+
+# 💻 Development artifacts
+*.log
+*.tmp
+*-temp*
+*-backup*
+*-old*
+
+# 🔐 Security & Environment
+.env
+.env.local
+.env.production
+*.key
+*.pem
+secrets/
+
+# 🗄️ Database files
+*.db
+*.sqlite
+*.sqlite3
+database-data/
+
+# 🐳 Docker artifacts
+docker-data/
+*.dockerfile.*
+
+# 📦 Dependencies
+node_modules/
+vendor/
+.pnpm-store/
+
+# 🏗️ Build artifacts
+build/
+dist/
+*.exe
+*.bin
+main
+pharmacy-backend
+
+# 🧪 Testing artifacts
+coverage/
+*.coverage
+test-results/
+
+# 🔧 IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# 📱 Mobile artifacts
+*.ipa
+*.apk
+
+# 🎯 OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 🚀 Deployment artifacts
+k8s-secrets/
+terraform.tfstate*
+.terraform/
+
+# RULE ENFORCEMENT: Only allow specific file patterns in root
+# Frontend files should be in frontend/
+# Backend files should be in cmd/ or internal/
+# Scripts should be in scripts/

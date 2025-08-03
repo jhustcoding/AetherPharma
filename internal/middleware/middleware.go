@@ -38,7 +38,7 @@ type SecurityMiddleware struct {
 
 func NewSecurityMiddleware(authService *auth.AuthService, db *gorm.DB, redis *redis.Client, config *config.Config) *SecurityMiddleware {
 	// Create rate limiter
-	limiter := rate.NewLimiter(rate.Limit(config.RateLimitRPS), config.RateLimitBurst)
+	limiter := rate.NewLimiter(rate.Limit(config.Security.RateLimitRPS), config.Security.RateLimitBurst)
 
 	return &SecurityMiddleware{
 		authService: authService,
@@ -104,9 +104,9 @@ func (m *SecurityMiddleware) Recovery() gin.HandlerFunc {
 // CORS middleware with secure configuration
 func (m *SecurityMiddleware) CORS() gin.HandlerFunc {
 	config := cors.DefaultConfig()
-	config.AllowOrigins = m.config.AllowedOrigins
-	config.AllowMethods = m.config.AllowedMethods
-	config.AllowHeaders = m.config.AllowedHeaders
+	config.AllowOrigins = m.config.CORS.AllowedOrigins
+	config.AllowMethods = m.config.CORS.AllowedMethods
+	config.AllowHeaders = m.config.CORS.AllowedHeaders
 	config.AllowCredentials = true
 	config.ExposeHeaders = []string{"X-Request-ID", "X-Total-Count"}
 	config.MaxAge = 12 * time.Hour
@@ -132,6 +132,12 @@ func (m *SecurityMiddleware) SecurityHeaders() gin.HandlerFunc {
 // Rate limiting middleware
 func (m *SecurityMiddleware) RateLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Skip rate limiting if Redis is not available
+		if m.redis == nil {
+			c.Next()
+			return
+		}
+		
 		// Create per-IP rate limiter
 		clientIP := c.ClientIP()
 		key := fmt.Sprintf("rate_limit:%s", clientIP)
@@ -148,13 +154,13 @@ func (m *SecurityMiddleware) RateLimit() gin.HandlerFunc {
 		}
 
 		// Check if limit exceeded
-		if current >= m.config.RateLimitRPS {
-			remaining := m.config.RateLimitRPS - current
+		if current >= m.config.Security.RateLimitRPS {
+			remaining := m.config.Security.RateLimitRPS - current
 			if remaining < 0 {
 				remaining = 0
 			}
 
-			c.Header("X-RateLimit-Limit", strconv.Itoa(m.config.RateLimitRPS))
+			c.Header("X-RateLimit-Limit", strconv.Itoa(m.config.Security.RateLimitRPS))
 			c.Header("X-RateLimit-Remaining", strconv.Itoa(remaining))
 			c.Header("X-RateLimit-Reset", strconv.FormatInt(time.Now().Add(time.Minute).Unix(), 10))
 
@@ -176,12 +182,12 @@ func (m *SecurityMiddleware) RateLimit() gin.HandlerFunc {
 		}
 
 		// Set rate limit headers
-		remaining := m.config.RateLimitRPS - current - 1
+		remaining := m.config.Security.RateLimitRPS - current - 1
 		if remaining < 0 {
 			remaining = 0
 		}
 
-		c.Header("X-RateLimit-Limit", strconv.Itoa(m.config.RateLimitRPS))
+		c.Header("X-RateLimit-Limit", strconv.Itoa(m.config.Security.RateLimitRPS))
 		c.Header("X-RateLimit-Remaining", strconv.Itoa(remaining))
 		c.Header("X-RateLimit-Reset", strconv.FormatInt(time.Now().Add(time.Minute).Unix(), 10))
 
@@ -192,6 +198,14 @@ func (m *SecurityMiddleware) RateLimit() gin.HandlerFunc {
 // Authentication middleware
 func (m *SecurityMiddleware) Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Check if authService is nil
+		if m.authService == nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"error": "Auth service not initialized",
+			})
+			return
+		}
+
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
@@ -227,14 +241,24 @@ func (m *SecurityMiddleware) Auth() gin.HandlerFunc {
 			return
 		}
 
-		// Check if session is blacklisted
-		ctx := context.Background()
-		key := fmt.Sprintf("blacklist:session:%s", claims.SessionID)
-		if blacklisted, err := m.redis.Get(ctx, key).Result(); err == nil && blacklisted == "1" {
-			m.auditLog(c, "blacklisted_token", "auth", claims.UserID.String(), false, "Blacklisted token used")
-			
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": "Token has been revoked",
+		// Check if session is blacklisted (skip if Redis not available)
+		if m.redis != nil {
+			ctx := context.Background()
+			key := fmt.Sprintf("blacklist:session:%s", claims.SessionID)
+			if blacklisted, err := m.redis.Get(ctx, key).Result(); err == nil && blacklisted == "1" {
+				m.auditLog(c, "blacklisted_token", "auth", claims.UserID.String(), false, "Blacklisted token used")
+				
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+					"error": "Token has been revoked",
+				})
+				return
+			}
+		}
+
+		// Check if db is nil
+		if m.db == nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"error": "Database connection not available",
 			})
 			return
 		}
@@ -271,6 +295,14 @@ func (m *SecurityMiddleware) Auth() gin.HandlerFunc {
 // Authorization middleware
 func (m *SecurityMiddleware) RequirePermission(resource, action string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Check if authService is nil
+		if m.authService == nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"error": "Auth service not initialized",
+			})
+			return
+		}
+
 		user, exists := c.Get(UserContextKey)
 		if !exists {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
@@ -325,7 +357,7 @@ func (m *SecurityMiddleware) AdminOnly() gin.HandlerFunc {
 // HIPAA compliance middleware
 func (m *SecurityMiddleware) HIPAACompliance() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !m.config.HIPAAMode {
+		if !m.config.HIPAA.Mode {
 			c.Next()
 			return
 		}
@@ -353,7 +385,7 @@ func (m *SecurityMiddleware) HIPAACompliance() gin.HandlerFunc {
 // Audit logging middleware
 func (m *SecurityMiddleware) AuditLog() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !m.config.AuditLogging {
+		if !m.config.HIPAA.AuditLogging {
 			c.Next()
 			return
 		}
@@ -365,6 +397,7 @@ func (m *SecurityMiddleware) AuditLog() gin.HandlerFunc {
 		duration := time.Since(start)
 		
 		// Log significant operations
+		_ = duration // Use the duration variable
 		if m.isSignificantOperation(c.Request.Method, c.Request.URL.Path) {
 			user, exists := c.Get(UserContextKey)
 			userID := ""
@@ -397,7 +430,19 @@ func (m *SecurityMiddleware) ValidateJSON() gin.HandlerFunc {
 // Helper methods
 
 func (m *SecurityMiddleware) auditLog(c *gin.Context, action, resource, userID string, success bool, errorMessage string) {
-	requestID, _ := c.Get(RequestIDKey)
+	// Check if db is nil
+	if m.db == nil {
+		if m.logger != nil {
+			m.logger.Error("Database connection is nil, cannot create audit log")
+		}
+		return
+	}
+
+	requestIDValue, _ := c.Get(RequestIDKey)
+	requestIDStr := ""
+	if requestID, ok := requestIDValue.(string); ok {
+		requestIDStr = requestID
+	}
 	
 	auditLog := models.AuditLog{
 		UserID:      parseUUID(userID),
@@ -406,13 +451,15 @@ func (m *SecurityMiddleware) auditLog(c *gin.Context, action, resource, userID s
 		ResourceID:  nil, // Could be extracted from URL
 		IPAddress:   c.ClientIP(),
 		UserAgent:   c.Request.UserAgent(),
-		RequestID:   requestID.(*string),
+		RequestID:   &requestIDStr,
 		Success:     success,
 		ErrorMessage: &errorMessage,
 	}
 
 	if err := m.db.Create(&auditLog).Error; err != nil {
-		m.logger.WithError(err).Error("Failed to create audit log")
+		if m.logger != nil {
+			m.logger.WithError(err).Error("Failed to create audit log")
+		}
 	}
 }
 

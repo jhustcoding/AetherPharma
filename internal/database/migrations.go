@@ -1,6 +1,7 @@
 package database
 
 import (
+	"strings"
 	"time"
 	
 	"pharmacy-backend/internal/models"
@@ -10,14 +11,19 @@ import (
 
 // Migrate runs database migrations
 func Migrate(db *gorm.DB) error {
-	// Enable UUID extension if using PostgreSQL
-	if err := db.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";").Error; err != nil {
-		return err
-	}
+	// Check if we're using PostgreSQL by checking the driver name
+	dialector := db.Dialector.Name()
+	isPostgres := strings.Contains(dialector, "postgres")
 	
-	// Enable pgcrypto extension for encryption functions
-	if err := db.Exec("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";").Error; err != nil {
-		return err
+	// Enable PostgreSQL extensions only if using PostgreSQL
+	if isPostgres {
+		if err := db.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";").Error; err != nil {
+			return err
+		}
+		
+		if err := db.Exec("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";").Error; err != nil {
+			return err
+		}
 	}
 
 	// Auto-migrate all models
@@ -26,12 +32,14 @@ func Migrate(db *gorm.DB) error {
 		&models.User{},
 		&models.Customer{},
 		&models.Product{},
+		&models.Service{},
 		&models.Sale{},
 		&models.SaleItem{},
 		&models.StockMovement{},
 		&models.PurchaseHistory{},
 		&models.AuditLog{},
 		&models.Supplier{},
+		&models.ProductSupplier{},
 		
 		// Online ordering models
 		&models.OnlineOrder{},
@@ -163,8 +171,8 @@ func SeedSampleData(db *gorm.DB) error {
 			Stock:                100,
 			MinStock:             20,
 			BatchNumber:          "BAT001",
-			ExpiryDate:           parseDate("2025-12-31"),
-			ManufactureDate:      parseDate("2023-01-15"),
+			ExpiryDate:           models.CustomDate{Time: parseDate("2025-12-31")},
+			ManufactureDate:      models.CustomDate{Time: parseDate("2023-01-15")},
 			PrescriptionRequired: false,
 			IsActive:             true,
 			Status:               "available",
@@ -186,8 +194,8 @@ func SeedSampleData(db *gorm.DB) error {
 			Stock:                75,
 			MinStock:             15,
 			BatchNumber:          "BAT002",
-			ExpiryDate:           parseDate("2025-06-30"),
-			ManufactureDate:      parseDate("2023-06-15"),
+			ExpiryDate:           models.CustomDate{Time: parseDate("2025-06-30")},
+			ManufactureDate:      models.CustomDate{Time: parseDate("2023-06-15")},
 			PrescriptionRequired: true,
 			IsActive:             true,
 			Status:               "available",
@@ -204,8 +212,8 @@ func SeedSampleData(db *gorm.DB) error {
 			Stock:        50,
 			MinStock:     10,
 			BatchNumber:  "BAT003",
-			ExpiryDate:   parseDate("2025-12-31"),
-			ManufactureDate: parseDate("2023-01-01"),
+			ExpiryDate:   models.CustomDate{Time: parseDate("2025-12-31")},
+			ManufactureDate: models.CustomDate{Time: parseDate("2023-01-01")},
 			IsActive:     true,
 			Status:       "available",
 			Unit:         "tablet",

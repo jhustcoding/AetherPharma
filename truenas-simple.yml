@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  aetherpharma:
+    image: alpine:latest
+    container_name: aetherpharma
+    restart: unless-stopped
+    ports:
+      - "80:8080"
+    environment:
+      JWT_SECRET: demo-secret
+      DB_TYPE: sqlite
+    command: sh -c "apk add git go && git clone https://github.com/jhustcoding/AetherPharma.git /app && cd /app && go run cmd/server/main.go"
+    hostname: aetherpharma

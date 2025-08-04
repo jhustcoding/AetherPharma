@@ -1,0 +1,37 @@
+# Build and push this image to Docker Hub
+FROM golang:1.21-alpine AS builder
+
+# Install dependencies
+RUN apk add --no-cache git nodejs npm
+
+# Copy source code (do this locally before building)
+WORKDIR /app
+COPY . .
+
+# Build backend
+RUN go mod download
+RUN go build -o pharmacy-backend cmd/server/main.go
+
+# Build frontend
+WORKDIR /app/frontend
+RUN npm install
+RUN npm run build
+
+# Final stage
+FROM alpine:latest
+RUN apk add --no-cache ca-certificates nodejs npm python3
+
+WORKDIR /app
+COPY --from=builder /app/pharmacy-backend .
+COPY --from=builder /app/frontend/build ./frontend/build
+COPY --from=builder /app/.env.demo .env
+
+# Create startup script
+RUN echo '#!/bin/sh' > /start.sh && \
+    echo 'cd /app && ./pharmacy-backend &' >> /start.sh && \
+    echo 'cd /app/frontend/build && python3 -m http.server 3000' >> /start.sh && \
+    chmod +x /start.sh
+
+EXPOSE 8080 3000
+
+CMD ["/start.sh"]

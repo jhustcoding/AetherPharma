@@ -1,0 +1,21 @@
+version: '3'
+services:
+  aetherpharma:
+    image: alpine:latest
+    ports:
+      - "30080:8080"
+      - "30000:3000"
+    environment:
+      - JWT_SECRET=demo-secret
+      - DB_TYPE=sqlite
+    command: >
+      sh -c "
+        apk add --no-cache git go nodejs npm &&
+        git clone https://github.com/jhustcoding/AetherPharma.git /app &&
+        cd /app &&
+        go run cmd/server/main.go &
+        cd frontend &&
+        npm install &&
+        npm start
+      "
+    restart: unless-stopped

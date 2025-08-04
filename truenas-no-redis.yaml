@@ -1,0 +1,62 @@
+# TrueNAS SCALE Docker Compose - No Redis Version
+# Simplified version that removes Redis dependency
+
+version: "3.3"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pharmacy_db
+      POSTGRES_USER: pharmacy_user
+      POSTGRES_PASSWORD: pharmacy_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    image: golang:1.21-alpine
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - "8080:8080"
+    environment:
+      # Environment Setting
+      ENV: development
+      ENVIRONMENT: development
+      # Database Configuration
+      DB_TYPE: postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: pharmacy_user
+      DB_PASSWORD: pharmacy_password
+      DB_NAME: pharmacy_db
+      DB_SSL_MODE: disable
+      # Security Configuration
+      JWT_SECRET: "truenas-demo-secret-key-32-chars"
+      ENCRYPTION_KEY: "abcdefghijklmnopqrstuvwxyz123456"
+      # Server Configuration
+      SERVER_PORT: 8080
+      GIN_MODE: debug
+      HIPAA_MODE: false
+    command: sh -c "apk add --no-cache git && rm -rf /app && git clone https://github.com/jhustcoding/AetherPharma.git /app && cd /app && echo 'Creating .env file...' && touch .env && sleep 20 && go mod download && go run cmd/server/main.go"
+
+  frontend:
+    image: node:18-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_API_BASE_URL: http://192.168.0.9:8080
+      DISABLE_ESLINT_PLUGIN: "true"
+      TSC_COMPILE_ON_ERROR: "true"
+      GENERATE_SOURCEMAP: "false"
+      CI: "false"
+      SKIP_PREFLIGHT_CHECK: "true"
+    command: sh -c "apk add --no-cache git && rm -rf /app && git clone https://github.com/jhustcoding/AetherPharma.git /app && cd /app/frontend && sleep 40 && npm install && npm start"
+
+volumes:
+  postgres_data:

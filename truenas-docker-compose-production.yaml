@@ -88,33 +88,7 @@ services:
       cd /app/frontend &&
       echo 'Installing dependencies...' &&
       npm install &&
-      echo 'Patching TypeScript configuration for production...' &&
-      cp tsconfig.json tsconfig.json.backup &&
-      cat > tsconfig.json << 'TSEOF'
-      {
-        \"compilerOptions\": {
-          \"target\": \"es5\",
-          \"lib\": [\"dom\", \"dom.iterable\", \"esnext\"],
-          \"allowJs\": true,
-          \"skipLibCheck\": true,
-          \"esModuleInterop\": true,
-          \"allowSyntheticDefaultImports\": true,
-          \"strict\": false,
-          \"noImplicitAny\": false,
-          \"strictNullChecks\": false,
-          \"forceConsistentCasingInFileNames\": true,
-          \"noFallthroughCasesInSwitch\": true,
-          \"module\": \"esnext\",
-          \"moduleResolution\": \"node\",
-          \"resolveJsonModule\": true,
-          \"isolatedModules\": true,
-          \"noEmit\": true,
-          \"jsx\": \"react-jsx\"
-        },
-        \"include\": [\"src\"]
-      }
-      TSEOF
-      echo 'Starting development server with relaxed TypeScript...' &&
+      echo 'Starting development server...' &&
       npm start
       "
     healthcheck:

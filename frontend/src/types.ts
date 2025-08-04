@@ -19,7 +19,9 @@ export interface Product {
   contraindications: string[];
   sideEffects: string[];
   interactions: string[];
+  drugInteractions?: string[]; // Alias for interactions
   barcode?: string;
+  sku?: string; // Product SKU
   productType: 'drug' | 'grocery';
   drugType?: 'generic' | 'branded';
   unit?: string;

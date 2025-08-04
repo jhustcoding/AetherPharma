@@ -263,8 +263,14 @@ const Customers: React.FC = () => {
     } catch (error) {
       // Fallback to local state if API fails
       console.error('Error saving customer to database:', error);
-      setCustomers([...customers, customerToAdd]);
-      toast.success(`${customerType === 'full' ? 'Customer' : 'Guest customer'} ${customerToAdd.name} added locally! QR Code: ${qrCode}`);
+      const fallbackCustomer = {
+        ...customerData,
+        id: `local-${Date.now()}`,
+        name: `${customerData.first_name} ${customerData.last_name}`,
+        qr_code: `QR-${Date.now()}`
+      };
+      setCustomers([...customers, fallbackCustomer]);
+      toast.success(`${customerType === 'full' ? 'Customer' : 'Guest customer'} ${customerData.first_name} ${customerData.last_name} added locally!`);
     }
 
     setShowAddModal(false);
@@ -527,7 +533,7 @@ const Customers: React.FC = () => {
                       </div>
                       <div className="flex items-center text-sm text-gray-600">
                         <Calendar className="h-4 w-4 mr-2" />
-                        Born: {new Date(selectedCustomer.dateOfBirth).toLocaleDateString()}
+                        Born: {selectedCustomer.dateOfBirth ? new Date(selectedCustomer.dateOfBirth).toLocaleDateString() : 'N/A'}
                       </div>
                     </div>
                   </div>

@@ -41,16 +41,16 @@ services:
       JWT_SECRET: truenas-demo-secret
       ENCRYPTION_KEY: 32-character-encryption-key-here
       GIN_MODE: release
-    command: |
+    command: >
       sh -c "
-        echo 'Starting Backend...' &&
-        apk add --no-cache git curl &&
-        git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app &&
-        cd /app &&
-        touch .env &&
-        echo 'Waiting for PostgreSQL...' &&
-        sleep 15 &&
-        go run cmd/server/main.go
+      echo 'Starting Backend...' &&
+      apk add --no-cache git curl &&
+      git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app &&
+      cd /app &&
+      touch .env &&
+      echo 'Waiting for PostgreSQL...' &&
+      sleep 15 &&
+      go run cmd/server/main.go
       "
     volumes:
       - app_data:/data
@@ -71,51 +71,49 @@ services:
       - "3000:3000"
     environment:
       REACT_APP_API_BASE_URL: http://192.168.0.9:8080
-      # TypeScript compilation settings
       DISABLE_ESLINT_PLUGIN: true
       TSC_COMPILE_ON_ERROR: true
       GENERATE_SOURCEMAP: false
       CI: false
       SKIP_PREFLIGHT_CHECK: true
-      # TypeScript strict mode handling
       TS_NODE_COMPILER_OPTIONS: '{"strict": false}'
       TYPESCRIPT_ERROR_ON_WARNING: false
-    command: |
+    command: >
       sh -c "
-        echo 'Starting Frontend Build Process...' &&
-        apk add --no-cache git &&
-        git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app &&
-        cd /app/frontend &&
-        echo 'Installing dependencies...' &&
-        npm install &&
-        echo 'Patching TypeScript configuration for production...' &&
-        cp tsconfig.json tsconfig.json.backup &&
-        cat > tsconfig.json << 'EOF'
-{
-  \"compilerOptions\": {
-    \"target\": \"es5\",
-    \"lib\": [\"dom\", \"dom.iterable\", \"esnext\"],
-    \"allowJs\": true,
-    \"skipLibCheck\": true,
-    \"esModuleInterop\": true,
-    \"allowSyntheticDefaultImports\": true,
-    \"strict\": false,
-    \"noImplicitAny\": false,
-    \"strictNullChecks\": false,
-    \"forceConsistentCasingInFileNames\": true,
-    \"noFallthroughCasesInSwitch\": true,
-    \"module\": \"esnext\",
-    \"moduleResolution\": \"node\",
-    \"resolveJsonModule\": true,
-    \"isolatedModules\": true,
-    \"noEmit\": true,
-    \"jsx\": \"react-jsx\"
-  },
-  \"include\": [\"src\"]
-}
-EOF
-        echo 'Starting development server with relaxed TypeScript...' &&
-        npm start
+      echo 'Starting Frontend Build Process...' &&
+      apk add --no-cache git &&
+      git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app &&
+      cd /app/frontend &&
+      echo 'Installing dependencies...' &&
+      npm install &&
+      echo 'Patching TypeScript configuration for production...' &&
+      cp tsconfig.json tsconfig.json.backup &&
+      cat > tsconfig.json << 'TSEOF'
+      {
+        \"compilerOptions\": {
+          \"target\": \"es5\",
+          \"lib\": [\"dom\", \"dom.iterable\", \"esnext\"],
+          \"allowJs\": true,
+          \"skipLibCheck\": true,
+          \"esModuleInterop\": true,
+          \"allowSyntheticDefaultImports\": true,
+          \"strict\": false,
+          \"noImplicitAny\": false,
+          \"strictNullChecks\": false,
+          \"forceConsistentCasingInFileNames\": true,
+          \"noFallthroughCasesInSwitch\": true,
+          \"module\": \"esnext\",
+          \"moduleResolution\": \"node\",
+          \"resolveJsonModule\": true,
+          \"isolatedModules\": true,
+          \"noEmit\": true,
+          \"jsx\": \"react-jsx\"
+        },
+        \"include\": [\"src\"]
+      }
+      TSEOF
+      echo 'Starting development server with relaxed TypeScript...' &&
+      npm start
       "
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]

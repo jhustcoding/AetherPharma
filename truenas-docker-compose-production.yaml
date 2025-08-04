@@ -45,6 +45,7 @@ services:
       sh -c "
       echo 'Starting Backend...' &&
       apk add --no-cache git curl &&
+      rm -rf /app &&
       git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app &&
       cd /app &&
       touch .env &&
@@ -82,6 +83,7 @@ services:
       sh -c "
       echo 'Starting Frontend Build Process...' &&
       apk add --no-cache git &&
+      rm -rf /app &&
       git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app &&
       cd /app/frontend &&
       echo 'Installing dependencies...' &&

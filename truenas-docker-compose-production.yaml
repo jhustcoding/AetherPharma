@@ -42,13 +42,13 @@ services:
       REDIS_DB: 0
       REDIS_PASSWORD: ""
       # Security Configuration
-      JWT_SECRET: truenas-demo-secret-key-32-chars
-      ENCRYPTION_KEY: 12345678901234567890123456789012
+      JWT_SECRET: "truenas-demo-secret-key-32-chars"
+      ENCRYPTION_KEY: "abcdefghijklmnopqrstuvwxyz123456"
       # Server Configuration
       SERVER_PORT: 8080
       GIN_MODE: release
       HIPAA_MODE: true
-    command: sh -c "echo 'Backend starting...' && apk add --no-cache git curl && echo 'Cloning repository...' && rm -rf /app && git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app && cd /app && echo 'Repository cloned, waiting for database...' && sleep 30 && echo 'Starting Go server...' && go mod tidy && go run cmd/server/main.go"
+    command: sh -c "echo 'Backend starting...' && echo 'ENCRYPTION_KEY length:' && echo \$ENCRYPTION_KEY | wc -c && apk add --no-cache git curl && echo 'Cloning repository...' && rm -rf /app && git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app && cd /app && echo 'Repository cloned, waiting for database...' && sleep 30 && echo 'Installing Go dependencies...' && go mod tidy && echo 'Starting Go server...' && go run cmd/server/main.go"
     volumes:
       - app_data:/data
 

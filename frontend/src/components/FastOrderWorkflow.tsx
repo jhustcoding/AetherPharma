@@ -284,7 +284,8 @@ const FastOrderWorkflow: React.FC = () => {
       } else if (error.name === 'NotFoundError') {
         toast.error('No camera found on this device.');
       } else {
-        toast.error(`Camera error: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown camera error';
+        toast.error(`Camera error: ${errorMessage}`);
       }
     }
   };
@@ -430,10 +431,11 @@ const FastOrderWorkflow: React.FC = () => {
 
   const handleGuestCustomer = () => {
     // Create a temporary guest customer object
-    const guestCustomer = {
+    const guestCustomer: Customer = {
       id: `guest_${Date.now()}`,
       firstName: 'Guest',
       lastName: 'Customer',
+      name: 'Guest Customer',
       email: '',
       phone: '',
       isSeniorCitizen: false,
@@ -441,7 +443,7 @@ const FastOrderWorkflow: React.FC = () => {
       isGuest: true
     };
     
-    setCustomer(guestCustomer as any);
+    setCustomer(guestCustomer);
     setCustomerType('new');
     updateWorkflowStep('customer', 'completed');
     setCurrentStep('products');
@@ -486,7 +488,8 @@ const FastOrderWorkflow: React.FC = () => {
       } else if (error.name === 'NotFoundError') {
         toast.error('No camera found on this device.');
       } else {
-        toast.error(`Camera error: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown camera error';
+        toast.error(`Camera error: ${errorMessage}`);
       }
     }
   };
@@ -641,7 +644,8 @@ const FastOrderWorkflow: React.FC = () => {
       }
     } catch (error) {
       console.error('Payment error:', error);
-      toast.error(`Payment processing error: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(`Payment processing error: ${errorMessage}`);
     }
   };
 

@@ -84,6 +84,8 @@ export interface Customer {
   // Support both naming conventions
   first_name?: string;
   last_name?: string;
+  firstName?: string;
+  lastName?: string;
   name?: string;
   email: string;
   phone: string;
@@ -111,6 +113,8 @@ export interface Customer {
   pwdId?: string;
   id_document_path?: string;
   idDocumentPath?: string;
+  // Guest customer flag
+  isGuest?: boolean;
 }
 
 export interface SaleItem {

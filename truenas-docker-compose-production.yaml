@@ -2,7 +2,7 @@
 # File: truenas-docker-compose-production.yaml
 # Format: Docker Compose v3.8 (NOT Kubernetes)
 
-version: "3.8"
+version: "3.3"
 
 services:
   postgres:
@@ -15,19 +15,13 @@ services:
       POSTGRES_PASSWORD: pharmacy_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pharmacy_user -d pharmacy_db"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
   backend:
     image: golang:1.21-alpine
     container_name: aetherpharma-backend
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
     ports:
       - "8080:8080"
     environment:
@@ -41,22 +35,16 @@ services:
       JWT_SECRET: truenas-demo-secret-key-32-chars
       ENCRYPTION_KEY: 12345678901234567890123456789012
       GIN_MODE: release
-    command: sh -c "apk add --no-cache git curl && rm -rf /app && git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app && cd /app && sleep 15 && go run cmd/server/main.go"
+    command: sh -c "apk add --no-cache git curl && rm -rf /app && git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app && cd /app && sleep 30 && go run cmd/server/main.go"
     volumes:
       - app_data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   frontend:
     image: node:18-alpine
     container_name: aetherpharma-frontend
     restart: unless-stopped
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     ports:
       - "3000:3000"
     environment:
@@ -68,12 +56,7 @@ services:
       SKIP_PREFLIGHT_CHECK: true
       TS_NODE_COMPILER_OPTIONS: '{"strict": false}'
       TYPESCRIPT_ERROR_ON_WARNING: false
-    command: sh -c "apk add --no-cache git && rm -rf /app && git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app && cd /app/frontend && npm install && npm start"
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    command: sh -c "apk add --no-cache git && rm -rf /app && git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app && cd /app/frontend && sleep 45 && npm install && npm start"
 
 volumes:
   postgres_data:

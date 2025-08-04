@@ -5,6 +5,14 @@
 version: "3.3"
 
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: aetherpharma-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
   postgres:
     image: postgres:15-alpine
     container_name: aetherpharma-postgres
@@ -22,6 +30,7 @@ services:
     restart: unless-stopped
     depends_on:
       - postgres
+      - redis
     ports:
       - "8080:8080"
     environment:
@@ -36,8 +45,8 @@ services:
       DB_PASSWORD: pharmacy_password
       DB_NAME: pharmacy_db
       DB_SSL_MODE: disable
-      # Redis Configuration (add Redis container)
-      REDIS_HOST: localhost
+      # Redis Configuration
+      REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_DB: 0
       REDIS_PASSWORD: ""
@@ -73,4 +82,5 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
   app_data:

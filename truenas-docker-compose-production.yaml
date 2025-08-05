@@ -54,6 +54,7 @@ services:
       JWT_SECRET: "truenas-demo-secret-key-32-chars"
       ENCRYPTION_KEY: "abcdefghijklmnopqrstuvwxyz123456"
       # Server Configuration
+      SERVER_HOST: "0.0.0.0"
       SERVER_PORT: 8080
       GIN_MODE: release
       HIPAA_MODE: true

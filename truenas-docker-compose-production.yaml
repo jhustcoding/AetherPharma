@@ -2,7 +2,7 @@
 # File: truenas-docker-compose-production.yaml
 # Format: Docker Compose v3.8 (NOT Kubernetes)
 
-version: "3.3"
+version: "3.8"
 
 services:
   redis:
@@ -21,25 +21,16 @@ services:
       POSTGRES_DB: pharmacy_db
       POSTGRES_USER: pharmacy_user
       POSTGRES_PASSWORD: pharmacy_password
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pharmacy_user -d pharmacy_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
 
   backend:
     image: golang:1.23-alpine
     container_name: aetherpharma-backend
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_started
+      - postgres
+      - redis
     ports:
       - "8080:8080"
     environment:
@@ -84,23 +75,16 @@ services:
       CORS_ALLOWED_ORIGINS: "*"
       CORS_ALLOWED_METHODS: "GET,POST,PUT,DELETE,OPTIONS,PATCH"
       CORS_ALLOWED_HEADERS: "*"
-    command: sh -c "echo '=== Backend Container Starting ===' && apk add --no-cache git curl gcc musl-dev postgresql-client && echo 'Waiting for PostgreSQL to be ready...' && until PGPASSWORD=pharmacy_password psql -h postgres -U pharmacy_user -d pharmacy_db -c 'SELECT 1;' > /dev/null 2>&1; do echo 'PostgreSQL not ready yet, waiting...'; sleep 2; done && echo 'PostgreSQL is ready!' && echo 'Setting up PostgreSQL extensions...' && PGPASSWORD=pharmacy_password psql -h postgres -U pharmacy_user -d pharmacy_db -c 'CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"; CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";' && rm -rf /app && git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app && cd /app && echo 'Updating GORM dependencies...' && go get -u gorm.io/gorm@latest && go get -u gorm.io/driver/postgres@latest && go get -u github.com/jackc/pgx/v5@latest && go mod tidy && echo 'Installing dependencies...' && go mod download && echo 'Starting backend server...' && CGO_ENABLED=1 go run cmd/server/main.go"
+    command: sh -c "echo '=== Backend Container Starting ===' && apk add --no-cache git curl gcc musl-dev postgresql-client && echo 'Waiting for PostgreSQL...' && sleep 15 && PGPASSWORD=pharmacy_password psql -h postgres -U pharmacy_user -d pharmacy_db -c 'CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"; CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";' || true && rm -rf /app && git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app && cd /app && go get -u gorm.io/gorm@latest && go get -u gorm.io/driver/postgres@latest && go get -u github.com/jackc/pgx/v5@latest && go mod tidy && go mod download && echo 'Starting backend server...' && CGO_ENABLED=1 go run cmd/server/main.go"
     volumes:
       - app_data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
 
   frontend:
     image: node:18-alpine
     container_name: aetherpharma-frontend
     restart: unless-stopped
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     ports:
       - "3000:3000"
     environment:
@@ -113,7 +97,7 @@ services:
       SKIP_PREFLIGHT_CHECK: true
       TS_NODE_COMPILER_OPTIONS: '{"strict": false}'
       TYPESCRIPT_ERROR_ON_WARNING: false
-    command: sh -c "apk add --no-cache git nodejs npm && rm -rf /app && git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app && cd /app/frontend && echo 'Replacing hardcoded API URLs...' && find src -type f \\( -name '*.tsx' -o -name '*.ts' \\) -exec sed -i \"s|'http://localhost:8080/api/v1|'http://192.168.0.9:8080/api/v1|g\" {} \\; && find src -type f \\( -name '*.tsx' -o -name '*.ts' \\) -exec sed -i 's|\"http://localhost:8080/api/v1|\"http://192.168.0.9:8080/api/v1|g' {} \\; && find src -type f \\( -name '*.tsx' -o -name '*.ts' \\) -exec sed -i 's|`http://localhost:8080/api/v1|`http://192.168.0.9:8080/api/v1|g' {} \\; && find src -type f \\( -name '*.tsx' -o -name '*.ts' \\) -exec sed -i \"s|fetch('http://localhost:8080/api/v1|fetch('http://192.168.0.9:8080/api/v1|g\" {} \\; && echo 'URL replacement complete' && sleep 45 && npm install && npm start"
+    command: sh -c "apk add --no-cache git nodejs npm && rm -rf /app && git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app && cd /app/frontend && find src -name '*.tsx' -o -name '*.ts' | xargs sed -i 's|http://localhost:8080|http://192.168.0.9:8080|g' && sleep 60 && npm install && npm start"
 
 volumes:
   postgres_data:

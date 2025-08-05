@@ -45,6 +45,11 @@ services:
       DB_PASSWORD: pharmacy_password
       DB_NAME: pharmacy_db
       DB_SSL_MODE: disable
+      # Disable cloud database features
+      CLOUD_DB_ENABLED: "false"
+      LOCAL_DB_ENABLED: "false"
+      READ_REPLICA_ENABLED: "false"
+      DUAL_DB_MODE: "false"
       # Redis Configuration
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -65,7 +70,7 @@ services:
       CORS_ALLOWED_ORIGINS: "*"
       CORS_ALLOWED_METHODS: "GET,POST,PUT,DELETE,OPTIONS,PATCH"
       CORS_ALLOWED_HEADERS: "*"
-    command: sh -c "echo '=== Backend Container Starting ===' && apk add --no-cache git curl gcc musl-dev postgresql-client && echo 'Setting up database extensions...' && PGPASSWORD=pharmacy_password psql -h postgres -U pharmacy_user -d pharmacy_db -c 'CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";' && echo 'Database setup OK!' && rm -rf /app && git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app && cd /app && echo 'Installing Go dependencies...' && go mod download && echo 'Starting server...' && CGO_ENABLED=1 go run cmd/server/main.go"
+    command: sh -c "echo '=== Backend Container Starting ===' && apk add --no-cache git curl gcc musl-dev postgresql-client && echo 'Waiting for PostgreSQL...' && sleep 10 && echo 'Setting up PostgreSQL extensions...' && PGPASSWORD=pharmacy_password psql -h postgres -U pharmacy_user -d pharmacy_db -c 'CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"; CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";' || true && rm -rf /app && git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app && cd /app && echo 'Installing dependencies...' && go mod download && echo 'Starting backend server...' && CGO_ENABLED=1 go run cmd/server/main.go"
     volumes:
       - app_data:/data
 

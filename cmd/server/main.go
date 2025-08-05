@@ -79,8 +79,15 @@ func main() {
 	router := setupRouter(securityMiddleware, apiHandlers)
 
 	// Create HTTP server
+	// Bind to all interfaces if host is empty or localhost
+	host := cfg.Server.Host
+	if host == "" || host == "localhost" {
+		host = "0.0.0.0"
+	}
+	addr := host + ":" + cfg.Server.Port
+	
 	server := &http.Server{
-		Addr:         ":" + cfg.Server.Port,
+		Addr:         addr,
 		Handler:      router,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
@@ -88,7 +95,11 @@ func main() {
 
 	// Start server in a goroutine
 	go func() {
-		logger.WithField("port", cfg.Server.Port).Info("Starting HTTP server")
+		logger.WithFields(logrus.Fields{
+			"address": addr,
+			"host": host,
+			"port": cfg.Server.Port,
+		}).Info("Starting HTTP server")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.WithError(err).Fatal("Failed to start server")
 		}

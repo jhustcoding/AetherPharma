@@ -55,10 +55,17 @@ services:
       ENCRYPTION_KEY: "abcdefghijklmnopqrstuvwxyz123456"
       # Server Configuration
       SERVER_HOST: "0.0.0.0"
-      SERVER_PORT: 8080
+      SERVER_PORT: "8080"
+      # Force Gin to bind to all interfaces
+      GIN_HOST: "0.0.0.0"
+      GIN_PORT: "8080"
       GIN_MODE: release
       HIPAA_MODE: true
-    command: sh -c "echo 'Backend starting...' && apk add --no-cache git curl gcc musl-dev && echo 'Cloning repository...' && rm -rf /app && git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app && cd /app && echo 'Waiting for services to be ready...' && sleep 40 && echo 'Installing Go dependencies...' && go mod download && echo 'Starting Go server...' && CGO_ENABLED=1 go run cmd/server/main.go"
+      # CORS Configuration
+      CORS_ALLOWED_ORIGINS: "*"
+      CORS_ALLOWED_METHODS: "GET,POST,PUT,DELETE,OPTIONS,PATCH"
+      CORS_ALLOWED_HEADERS: "*"
+    command: sh -c "echo '=== Backend Container Starting ===' && apk add --no-cache git curl gcc musl-dev postgresql-client && echo 'Setting up database extensions...' && PGPASSWORD=pharmacy_password psql -h postgres -U pharmacy_user -d pharmacy_db -c 'CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";' && echo 'Database setup OK!' && rm -rf /app && git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app && cd /app && echo 'Installing Go dependencies...' && go mod download && echo 'Starting server...' && CGO_ENABLED=1 go run cmd/server/main.go"
     volumes:
       - app_data:/data
 

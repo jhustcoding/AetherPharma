@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -125,9 +126,20 @@ func (m *SecurityMiddleware) CORS() gin.HandlerFunc {
 // Security headers middleware
 func (m *SecurityMiddleware) SecurityHeaders() gin.HandlerFunc {
 	secureConfig := secure.DefaultConfig()
-	secureConfig.SSLRedirect = m.config.IsProduction()
-	secureConfig.STSSeconds = 31536000
-	secureConfig.STSIncludeSubdomains = true
+	
+	// Disable SSL redirect in development or when explicitly disabled
+	disableSSL := !m.config.IsProduction() || os.Getenv("DISABLE_SSL_REDIRECT") == "true"
+	secureConfig.SSLRedirect = !disableSSL
+	
+	if disableSSL {
+		// Don't enforce HTTPS in development
+		secureConfig.STSSeconds = 0
+		secureConfig.STSIncludeSubdomains = false
+	} else {
+		secureConfig.STSSeconds = 31536000
+		secureConfig.STSIncludeSubdomains = true
+	}
+	
 	secureConfig.FrameDeny = true
 	secureConfig.ContentTypeNosniff = true
 	secureConfig.BrowserXssFilter = true

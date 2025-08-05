@@ -104,10 +104,18 @@ func (m *SecurityMiddleware) Recovery() gin.HandlerFunc {
 // CORS middleware with secure configuration
 func (m *SecurityMiddleware) CORS() gin.HandlerFunc {
 	config := cors.DefaultConfig()
-	config.AllowOrigins = m.config.CORS.AllowedOrigins
+	
+	// Check if allowing all origins
+	if len(m.config.CORS.AllowedOrigins) == 1 && m.config.CORS.AllowedOrigins[0] == "*" {
+		config.AllowAllOrigins = true
+		config.AllowCredentials = false // Cannot use credentials with AllowAllOrigins
+	} else {
+		config.AllowOrigins = m.config.CORS.AllowedOrigins
+		config.AllowCredentials = true
+	}
+	
 	config.AllowMethods = m.config.CORS.AllowedMethods
 	config.AllowHeaders = m.config.CORS.AllowedHeaders
-	config.AllowCredentials = true
 	config.ExposeHeaders = []string{"X-Request-ID", "X-Total-Count"}
 	config.MaxAge = 12 * time.Hour
 

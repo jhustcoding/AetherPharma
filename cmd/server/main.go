@@ -63,6 +63,18 @@ func main() {
 		logger.WithError(err).Fatal("Failed to run database migrations")
 	}
 
+	// Create default admin user
+	if err := database.CreateDefaultAdmin(db); err != nil {
+		logger.WithError(err).Fatal("Failed to create default admin user")
+	}
+
+	// Seed sample data in development
+	if cfg.IsDevelopment() {
+		if err := database.SeedSampleData(db); err != nil {
+			logger.WithError(err).Warn("Failed to seed sample data")
+		}
+	}
+
 	// Connect to Redis
 	redisClient := connectRedis(cfg, logger)
 

@@ -3,6 +3,7 @@ import { Search, Plus, Edit, AlertTriangle, Package, TrendingUp, TrendingDown, S
 import { Product, Supplier } from '../types';
 import { SupplierService } from '../services/supplierService';
 import toast from 'react-hot-toast';
+import { config } from '../config';
 
 const Inventory: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -56,7 +57,7 @@ const Inventory: React.FC = () => {
   const loadProducts = async () => {
     try {
       // Request all products with a high limit to ensure we get all grocery items
-      const response = await fetch('http://localhost:8080/api/v1/products?limit=1000', {
+      const response = await fetch(`${config.API_BASE_URL}/products?limit=1000`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
@@ -214,7 +215,7 @@ const Inventory: React.FC = () => {
         supplier_ids: newProduct.supplierIds || []
       };
 
-      const response = await fetch('http://localhost:8080/api/v1/products', {
+      const response = await fetch(`${config.API_BASE_URL}/products`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -481,7 +482,7 @@ const Inventory: React.FC = () => {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:8080/api/v1/products/${selectedProduct.id}/stock`, {
+      const response = await fetch(`${config.API_BASE_URL}/products/${selectedProduct.id}/stock`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -542,7 +543,7 @@ const Inventory: React.FC = () => {
         supplier_ids: editProduct.supplierIds || []
       };
 
-      const response = await fetch(`http://localhost:8080/api/v1/products/${editProduct.id}`, {
+      const response = await fetch(`${config.API_BASE_URL}/products/${editProduct.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

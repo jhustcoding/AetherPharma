@@ -3,6 +3,7 @@ import { Search, Plus, User, Phone, Mail, Calendar, AlertTriangle, Brain, Histor
 import { Customer, CustomerPurchaseHistory } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
+import { config } from '../config';
 
 const Customers: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -40,7 +41,7 @@ const Customers: React.FC = () => {
         return;
       }
 
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8080/api/v1';
+      const apiUrl = config.API_BASE_URL;
       const response = await fetch(`${apiUrl}/customers`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -62,7 +63,7 @@ const Customers: React.FC = () => {
           
           // Try to re-authenticate with default credentials
           try {
-            const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8080/api/v1';
+            const apiUrl = config.API_BASE_URL;
             const loginResponse = await fetch(`${apiUrl}/auth/login`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -109,7 +110,7 @@ const Customers: React.FC = () => {
 
   const loadCustomerPurchaseHistory = async (customerId: string) => {
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8080/api/v1';
+      const apiUrl = config.API_BASE_URL;
       const response = await fetch(`${apiUrl}/customers/${customerId}/purchases`);
       if (response.ok) {
         const historyData = await response.json();
@@ -245,7 +246,7 @@ const Customers: React.FC = () => {
     // Save customer to database via API
     try {
       const token = localStorage.getItem('auth_token');
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8080/api/v1';
+      const apiUrl = config.API_BASE_URL;
       const response = await fetch(`${apiUrl}/customers`, {
         method: 'POST',
         headers: {

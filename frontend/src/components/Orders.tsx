@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-hot-toast';
+import { config } from '../config';
 import { 
   Search, 
   Plus, 
@@ -223,7 +224,7 @@ const Orders: React.FC = () => {
       } else {
         // Try API call for barcode lookup
         try {
-          const response = await fetch(`http://localhost:8080/api/v1/products/barcode/${barcode}`);
+          const response = await fetch(`${config.API_BASE_URL}/products/barcode/${barcode}`);
           if (response.ok) {
             const foundProduct = await response.json();
             handleProductScanned(foundProduct);
@@ -242,7 +243,7 @@ const Orders: React.FC = () => {
 
   const loadProducts = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/v1/products/browse');
+      const response = await fetch(`${config.API_BASE_URL}/products/browse`);
       if (response.ok) {
         const productsData = await response.json();
         // The API returns {products: [...], total: N} format
@@ -256,7 +257,7 @@ const Orders: React.FC = () => {
 
   const loadCustomers = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/v1/customers');
+      const response = await fetch(`${config.API_BASE_URL}/customers`);
       if (response.ok) {
         const customersData = await response.json();
         setCustomers(customersData);
@@ -892,7 +893,7 @@ const Orders: React.FC = () => {
 
         // Save customer to database via API
         try {
-          const response = await fetch('http://localhost:8080/api/v1/customers', {
+          const response = await fetch(`${config.API_BASE_URL}/customers`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

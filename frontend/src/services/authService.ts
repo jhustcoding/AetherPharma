@@ -1,4 +1,5 @@
 import { apiService } from './api';
+import { config } from '../config';
 
 export interface LoginResponse {
   access_token: string;
@@ -19,7 +20,7 @@ export interface LoginResponse {
 export class AuthService {
   static async login(username: string, password: string): Promise<LoginResponse> {
     try {
-      const response = await fetch('http://localhost:8080/api/v1/auth/login', {
+      const response = await fetch(`${config.API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

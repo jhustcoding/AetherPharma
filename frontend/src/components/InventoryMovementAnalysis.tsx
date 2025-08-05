@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Activity, AlertCircle, Package, BarChart3, Zap, Clock } from 'lucide-react';
 import { InventoryAnalyticsService, ProductMovementAnalysis } from '../services/inventoryAnalytics';
+import { config } from '../config';
 
 const InventoryMovementAnalysis: React.FC = () => {
   const [analysis, setAnalysis] = useState<ProductMovementAnalysis[]>([]);
@@ -34,8 +35,8 @@ const InventoryMovementAnalysis: React.FC = () => {
       
       // Load products and sales data from API
       const [productsResponse, salesResponse] = await Promise.all([
-        fetch('http://localhost:8080/api/v1/products', { headers }),
-        fetch('http://localhost:8080/api/v1/sales', { headers })
+        fetch(`${config.API_BASE_URL}/products`, { headers }),
+        fetch(`${config.API_BASE_URL}/sales`, { headers })
       ]);
 
       let productsData = [];

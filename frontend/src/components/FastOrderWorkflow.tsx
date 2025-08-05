@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-hot-toast';
+import { config } from '../config';
 import { 
   Scan, 
   User, 
@@ -178,7 +179,7 @@ const FastOrderWorkflow: React.FC = () => {
   const loadProducts = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:8080/api/v1/products/browse', {
+      const response = await fetch(`${config.API_BASE_URL}/products/browse`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -307,7 +308,7 @@ const FastOrderWorkflow: React.FC = () => {
     try {
       // Parse QR data and fetch customer
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:8080/api/v1/customers/qr/${qrData}`, {
+      const response = await fetch(`${config.API_BASE_URL}/customers/qr/${qrData}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -339,7 +340,7 @@ const FastOrderWorkflow: React.FC = () => {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:8080/api/v1/customers?search=${encodeURIComponent(searchTerm)}&limit=10`, {
+      const response = await fetch(`${config.API_BASE_URL}/customers?search=${encodeURIComponent(searchTerm)}&limit=10`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -372,7 +373,7 @@ const FastOrderWorkflow: React.FC = () => {
   const loadCustomerPrescriptions = async (customerId: string) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:8080/api/v1/customers/${customerId}/prescriptions`, {
+      const response = await fetch(`${config.API_BASE_URL}/customers/${customerId}/prescriptions`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -403,7 +404,7 @@ const FastOrderWorkflow: React.FC = () => {
   const handleNewCustomer = async (customerData: any) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:8080/api/v1/customers', {
+      const response = await fetch(`${config.API_BASE_URL}/customers`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -593,7 +594,7 @@ const FastOrderWorkflow: React.FC = () => {
         notes: isGuest ? 'Fast workflow order - Guest customer' : 'Fast workflow order'
       };
 
-      const response = await fetch('http://localhost:8080/api/v1/sales', {
+      const response = await fetch(`${config.API_BASE_URL}/sales`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -654,7 +655,7 @@ const FastOrderWorkflow: React.FC = () => {
       const token = localStorage.getItem('auth_token');
       
       for (const item of cart) {
-        await fetch('http://localhost:8080/api/v1/customers/purchase-history', {
+        await fetch(`${config.API_BASE_URL}/customers/purchase-history`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -712,7 +713,7 @@ const FastOrderWorkflow: React.FC = () => {
           }
         };
 
-        await fetch('http://localhost:8080/api/v1/customers/prescriptions', {
+        await fetch(`${config.API_BASE_URL}/customers/prescriptions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -749,7 +750,7 @@ const FastOrderWorkflow: React.FC = () => {
         formData.append('image_type', 'prescription');
         formData.append('description', `Prescription for ${productId}`);
 
-        await fetch('http://localhost:8080/api/v1/customers/prescription-images', {
+        await fetch(`${config.API_BASE_URL}/customers/prescription-images`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -790,7 +791,7 @@ const FastOrderWorkflow: React.FC = () => {
         }
       };
 
-      await fetch(`http://localhost:8080/api/v1/customers/${customer?.id}/medical-profile`, {
+      await fetch(`${config.API_BASE_URL}/customers/${customer?.id}/medical-profile`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

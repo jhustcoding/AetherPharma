@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
+import { config } from '../config';
 import { 
   Camera, 
   X, 
@@ -89,7 +90,7 @@ const QRScanner: React.FC<QRScannerProps> = ({
       if (mode === 'customer') {
         try {
           // Try to find customer by QR code
-          const response = await fetch(`http://localhost:8080/api/v1/customers/qr/${encodeURIComponent(data)}`);
+          const response = await fetch(`${config.API_BASE_URL}/customers/qr/${encodeURIComponent(data)}`);
           if (response.ok) {
             const customer = await response.json();
             setScanResult({ type: 'customer', data: customer });

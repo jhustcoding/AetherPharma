@@ -474,6 +474,8 @@ func (m *SecurityMiddleware) auditLog(c *gin.Context, action, resource, userID s
 		RequestID:   &requestIDStr,
 		Success:     success,
 		ErrorMessage: &errorMessage,
+		OldValues:   "{}", // Valid empty JSON
+		NewValues:   "{}", // Valid empty JSON
 	}
 
 	if err := m.db.Create(&auditLog).Error; err != nil {

@@ -120,12 +120,8 @@ func LoadConfig() (*Config, error) {
 		// Fallback to .env file
 		err = godotenv.Load()
 		if err != nil {
-			// Don't fail if .env doesn't exist in production
-			if env == "production" {
-				fmt.Println("Warning: .env file not found, using environment variables")
-			} else {
-				return nil, fmt.Errorf("error loading .env file: %v", err)
-			}
+			// Don't fail if .env doesn't exist - use environment variables
+			fmt.Printf("Warning: .env file not found in %s mode, using environment variables only\n", env)
 		}
 	}
 

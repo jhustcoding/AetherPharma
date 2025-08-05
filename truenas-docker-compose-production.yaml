@@ -92,7 +92,7 @@ services:
       SKIP_PREFLIGHT_CHECK: true
       TS_NODE_COMPILER_OPTIONS: '{"strict": false}'
       TYPESCRIPT_ERROR_ON_WARNING: false
-    command: sh -c "apk add --no-cache git && rm -rf /app && git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app && cd /app/frontend && echo 'Replacing localhost with actual API URL...' && find src -name '*.tsx' -o -name '*.ts' | xargs sed -i 's|http://localhost:8080|http://192.168.0.9:8080|g' && sleep 45 && npm install && npm start"
+    command: sh -c "apk add --no-cache git nodejs npm && rm -rf /app && git clone --depth 1 https://github.com/jhustcoding/AetherPharma.git /app && cd /app/frontend && echo 'Replacing hardcoded API URLs...' && find src -type f \\( -name '*.tsx' -o -name '*.ts' \\) -exec sed -i \"s|'http://localhost:8080/api/v1|'http://192.168.0.9:8080/api/v1|g\" {} \\; && find src -type f \\( -name '*.tsx' -o -name '*.ts' \\) -exec sed -i 's|\"http://localhost:8080/api/v1|\"http://192.168.0.9:8080/api/v1|g' {} \\; && find src -type f \\( -name '*.tsx' -o -name '*.ts' \\) -exec sed -i 's|`http://localhost:8080/api/v1|`http://192.168.0.9:8080/api/v1|g' {} \\; && find src -type f \\( -name '*.tsx' -o -name '*.ts' \\) -exec sed -i \"s|fetch('http://localhost:8080/api/v1|fetch('http://192.168.0.9:8080/api/v1|g\" {} \\; && echo 'URL replacement complete' && sleep 45 && npm install && npm start"
 
 volumes:
   postgres_data:

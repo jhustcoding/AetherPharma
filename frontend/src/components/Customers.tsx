@@ -40,7 +40,8 @@ const Customers: React.FC = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:8080/api/v1/customers', {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8080/api/v1';
+      const response = await fetch(`${apiUrl}/customers`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -61,7 +62,8 @@ const Customers: React.FC = () => {
           
           // Try to re-authenticate with default credentials
           try {
-            const loginResponse = await fetch('http://localhost:8080/api/v1/auth/login', {
+            const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8080/api/v1';
+            const loginResponse = await fetch(`${apiUrl}/auth/login`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ username: 'admin', password: 'admin123' })
@@ -81,7 +83,7 @@ const Customers: React.FC = () => {
               }));
               
               // Retry loading customers with new token
-              const retryResponse = await fetch('http://localhost:8080/api/v1/customers', {
+              const retryResponse = await fetch(`${apiUrl}/customers`, {
                 headers: { 'Authorization': `Bearer ${loginData.access_token}` }
               });
               
@@ -107,7 +109,8 @@ const Customers: React.FC = () => {
 
   const loadCustomerPurchaseHistory = async (customerId: string) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/v1/customers/${customerId}/purchases`);
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8080/api/v1';
+      const response = await fetch(`${apiUrl}/customers/${customerId}/purchases`);
       if (response.ok) {
         const historyData = await response.json();
         setPurchaseHistory(historyData.orders || []);
@@ -242,7 +245,8 @@ const Customers: React.FC = () => {
     // Save customer to database via API
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:8080/api/v1/customers', {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8080/api/v1';
+      const response = await fetch(`${apiUrl}/customers`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

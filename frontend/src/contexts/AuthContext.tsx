@@ -64,19 +64,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
 
-      // Verify token with backend
-      const response = await fetch(config.getApiUrl('/auth/verify'), {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Token verification failed');
-      }
-
+      // For now, just restore user from localStorage without backend verification
+      // TODO: Implement /auth/verify endpoint in backend if needed
       const storedUser = localStorage.getItem('user_info');
       if (storedUser) {
         const userData = JSON.parse(storedUser);

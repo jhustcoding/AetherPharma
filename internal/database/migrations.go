@@ -66,7 +66,7 @@ func CreateDefaultAdmin(db *gorm.DB) error {
 		admin := models.User{
 			Username:    "admin",
 			Email:       "admin@pharmacy.com",
-			PasswordHash: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewD/3lCEwjvJyHHO", // password: admin123
+			PasswordHash: "$2a$12$M6Bla1YS0MqbB3Qlz03v/OQkB2948EzZ4bydSs2U8O9f1napwFZNq", // password: admin123
 			FirstName:   "System",
 			LastName:    "Administrator",
 			Role:        models.RoleAdmin,
@@ -98,7 +98,7 @@ func SeedSampleData(db *gorm.DB) error {
 		{
 			Username:    "pharmacist1",
 			Email:       "pharmacist1@pharmacy.com",
-			PasswordHash: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewD/3lCEwjvJyHHO", // password: admin123
+			PasswordHash: "$2a$12$M6Bla1YS0MqbB3Qlz03v/OQkB2948EzZ4bydSs2U8O9f1napwFZNq", // password: admin123
 			FirstName:   "John",
 			LastName:    "Pharmacist",
 			Role:        models.RolePharmacist,
@@ -107,7 +107,7 @@ func SeedSampleData(db *gorm.DB) error {
 		{
 			Username:    "assistant1",
 			Email:       "assistant1@pharmacy.com",
-			PasswordHash: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewD/3lCEwjvJyHHO", // password: admin123
+			PasswordHash: "$2a$12$M6Bla1YS0MqbB3Qlz03v/OQkB2948EzZ4bydSs2U8O9f1napwFZNq", // password: admin123
 			FirstName:   "Jane",
 			LastName:    "Assistant",
 			Role:        models.RoleAssistant,

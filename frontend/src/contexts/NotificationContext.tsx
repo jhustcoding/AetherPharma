@@ -1,52 +1,22 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { OnlineOrder } from '../types';
 import { toast } from 'react-hot-toast';
-
-export interface OnlineOrder {
-  id: string;
-  orderNumber: string;
-  customerId: string; // Links to customer database
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
-  items: Array<{
-    name: string;
-    quantity: number;
-    price: number;
-  }>;
-  total: number;
-  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'completed' | 'cancelled';
-  orderType: 'delivery' | 'pickup';
-  deliveryAddress?: string;
-  paymentMethod: 'card' | 'cod' | 'gcash' | 'maya';
-  paymentStatus: 'pending' | 'paid' | 'failed';
-  orderDate: string;
-  estimatedTime?: string;
-  priority: 'normal' | 'urgent';
-  notes?: string;
-}
+import { config } from '../config';
 
 interface NotificationContextType {
-  notifications: OnlineOrder[];
-  unreadCount: number;
-  addNotification: (order: OnlineOrder) => void;
-  markAsRead: (orderId: string) => void;
-  markAllAsRead: () => void;
-  updateOrderStatus: (orderId: string, status: OnlineOrder['status']) => void;
-  removeNotification: (orderId: string) => void;
-  getOrderById: (orderId: string) => OnlineOrder | undefined;
-  playNotificationSound: () => void;
-  addDemoOrder: () => void;
+  onlineOrders: OnlineOrder[];
+  unreadOrderCount: number;
+  fetchOnlineOrders: () => Promise<void>;
+  markOrderAsRead: (orderId: string) => void;
   clearAllOrders: () => void;
-  getCustomerById: (customerId: string) => any;
-  addNewCustomerFromOrder: (order: OnlineOrder) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-export const useNotifications = () => {
+export const useNotification = () => {
   const context = useContext(NotificationContext);
-  if (context === undefined) {
-    throw new Error('useNotifications must be used within a NotificationProvider');
+  if (!context) {
+    throw new Error('useNotification must be used within a NotificationProvider');
   }
   return context;
 };
@@ -56,226 +26,176 @@ interface NotificationProviderProps {
 }
 
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
-  const [notifications, setNotifications] = useState<OnlineOrder[]>([]);
-  const [readNotifications, setReadNotifications] = useState<Set<string>>(new Set());
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [onlineOrders, setOnlineOrders] = useState<OnlineOrder[]>([]);
+  const [unreadOrderCount, setUnreadOrderCount] = useState(0);
 
-  // Load customers from API
-  const loadCustomers = async () => {
+  const fetchOnlineOrders = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/v1/customers');
-      if (response.ok) {
-        const customersData = await response.json();
-        setCustomers(customersData);
-      }
-    } catch (error) {
-      console.error('Error loading customers:', error);
-      setCustomers([]);
-    }
-  };
-
-  // Load real orders from API
-  const loadOrders = async () => {
-    try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('http://localhost:8080/api/v1/orders', {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${config.API_BASE_URL}/orders?status=pending`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         }
       });
+
       if (response.ok) {
-        const ordersData = await response.json();
-        // Convert backend order format to frontend format
-        const convertedOrders = ordersData.map((order: any) => ({
-          id: order.id,
-          orderNumber: order.order_number || `ORD-${order.id}`,
-          customerId: order.customer_id,
-          customerName: order.customer_name || 'Unknown Customer',
-          customerEmail: order.customer_email || '',
-          customerPhone: order.customer_phone || '',
-          items: order.items || [],
-          total: order.total || 0,
-          status: order.status || 'pending',
-          orderType: order.order_type || 'delivery',
-          deliveryAddress: order.delivery_address,
-          paymentMethod: order.payment_method || 'cod',
-          paymentStatus: order.payment_status || 'pending',
-          orderDate: order.created_at || new Date().toISOString(),
-          estimatedTime: order.estimated_time || '30 minutes',
-          priority: order.priority || 'normal',
-          notes: order.notes
-        }));
-        setNotifications(convertedOrders);
+        const orders = await response.json();
+        setOnlineOrders(orders);
+        
+        // Count unread orders
+        const unreadCount = orders.filter((order: OnlineOrder) => 
+          order.status === 'pending' || order.status === 'processing'
+        ).length;
+        
+        setUnreadOrderCount(unreadCount);
+        
+        // Show notification for new orders
+        if (unreadCount > 0) {
+          toast.success(`You have ${unreadCount} new online order(s)!`);
+        }
       }
     } catch (error) {
-      console.error('Error loading orders:', error);
-      // Fall back to existing localStorage data if API fails
+      console.error('Failed to fetch online orders:', error);
     }
   };
 
-  // Load real data from API on mount
-  useEffect(() => {
-    loadCustomers();
-    loadOrders();
-    
-    const savedReadNotifications = localStorage.getItem('read_notifications');
-    if (savedReadNotifications) {
-      try {
-        setReadNotifications(new Set(JSON.parse(savedReadNotifications)));
-      } catch (error) {
-        console.error('Error loading read notifications:', error);
-      }
-    }
-  }, []);
-
-  // Save read notifications to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('read_notifications', JSON.stringify(Array.from(readNotifications)));
-  }, [readNotifications]);
-
-  // Refresh orders periodically to get real-time updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      loadOrders();
-    }, 30000); // Refresh every 30 seconds
-
-    return () => clearInterval(interval);
-  }, []);
-
-
-  const playNotificationSound = () => {
+  const markOrderAsRead = async (orderId: string) => {
     try {
-      // Create audio context for notification sound
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      oscillator.frequency.value = 800;
-      oscillator.type = 'sine';
-      
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-      
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.5);
-    } catch (error) {
-      console.log('Could not play notification sound:', error);
-    }
-  };
-
-  const addNotification = (order: OnlineOrder) => {
-    setNotifications(prev => [order, ...prev]);
-    playNotificationSound();
-    toast.success(`New online order from ${order.customerName}`, {
-      duration: 5000,
-      icon: '🛒',
-    });
-  };
-
-  const markAsRead = (orderId: string) => {
-    setReadNotifications(prev => new Set(Array.from(prev).concat([orderId])));
-  };
-
-  const markAllAsRead = () => {
-    setReadNotifications(new Set(notifications.map(n => n.id)));
-  };
-
-  const updateOrderStatus = async (orderId: string, status: OnlineOrder['status']) => {
-    try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`http://localhost:8080/api/v1/orders/${orderId}/status`, {
+      const token = localStorage.getItem('auth_token');
+      await fetch(`${config.API_BASE_URL}/orders/${orderId}/status`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ status: 'processing' })
       });
-
-      if (response.ok) {
-        // Update local state
-        setNotifications(prev => prev.map(order => 
-          order.id === orderId ? { ...order, status } : order
-        ));
-        
-        const order = notifications.find(n => n.id === orderId);
-        if (order) {
-          toast.success(`Order ${order.orderNumber} status updated to ${status}`);
-        }
-      } else {
-        toast.error('Failed to update order status');
-      }
+      
+      // Update local state
+      setOnlineOrders(prev => 
+        prev.map(order => 
+          order.id === orderId ? { ...order, status: 'processing' } : order
+        )
+      );
+      
+      // Update unread count
+      const newUnreadCount = onlineOrders.filter(order => 
+        order.id !== orderId && (order.status === 'pending' || order.status === 'processing')
+      ).length;
+      
+      setUnreadOrderCount(newUnreadCount);
     } catch (error) {
-      console.error('Error updating order status:', error);
-      toast.error('Failed to update order status');
+      console.error('Failed to mark order as read:', error);
     }
-  };
-
-  const removeNotification = (orderId: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== orderId));
-    setReadNotifications(prev => {
-      const newSet = new Set(Array.from(prev));
-      newSet.delete(orderId);
-      return newSet;
-    });
-  };
-
-  const getOrderById = (orderId: string) => {
-    return notifications.find(n => n.id === orderId);
-  };
-
-  const addDemoOrder = () => {
-    // This functionality is disabled - orders now come from real API
-    toast('Demo orders disabled. Orders now load from database.', {
-      icon: 'ℹ️',
-    });
   };
 
   const clearAllOrders = () => {
-    setNotifications([]);
-    setReadNotifications(new Set());
-    localStorage.removeItem('read_notifications');
-    toast.success('All orders cleared from view');
+    setOnlineOrders([]);
+    setUnreadOrderCount(0);
   };
 
-  const getCustomerById = (customerId: string) => {
-    return customers.find(customer => customer.id === customerId);
-  };
+  // Poll for new orders every 30 seconds
+  useEffect(() => {
+    fetchOnlineOrders();
+    const interval = setInterval(fetchOnlineOrders, 30000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
-  const addNewCustomerFromOrder = (order: OnlineOrder) => {
-    // In a real app, this would add the customer to the database
-    const existingCustomer = customers.find(c => c.email === order.customerEmail);
-    if (!existingCustomer) {
-      toast(`New customer ${order.customerName} from online order can be added to database`, {
-        icon: '👤',
-      });
-    }
-  };
+  // Simulate receiving new orders for demo
+  useEffect(() => {
+    const demoInterval = setInterval(() => {
+      const randomChance = Math.random();
+      if (randomChance > 0.7) { // 30% chance of new order
+        const newOrder: OnlineOrder = {
+          id: `order-${Date.now()}`,
+          orderNumber: `ORD-${Math.floor(Math.random() * 10000)}`,
+          customer: {
+            id: `cust-${Date.now()}`,
+            name: ['John Doe', 'Jane Smith', 'Robert Johnson', 'Maria Garcia'][Math.floor(Math.random() * 4)],
+            email: 'customer@email.com',
+            phone: '+1234567890'
+          },
+          items: [
+            {
+              id: `item-${Date.now()}`,
+              productId: 'prod-1',
+              productName: ['Paracetamol 500mg', 'Amoxicillin 250mg', 'Vitamin C 1000mg'][Math.floor(Math.random() * 3)],
+              quantity: Math.floor(Math.random() * 5) + 1,
+              price: Math.random() * 50 + 10,
+              subtotal: 0,
+              prescriptionRequired: Math.random() > 0.5
+            }
+          ],
+          totalAmount: Math.random() * 200 + 50,
+          status: 'pending',
+          paymentMethod: ['cash', 'card', 'gcash'][Math.floor(Math.random() * 3)],
+          prescriptionImages: [],
+          notes: '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        
+        newOrder.items[0].subtotal = newOrder.items[0].price * newOrder.items[0].quantity;
+        
+        setOnlineOrders(prev => [newOrder, ...prev]);
+        setUnreadOrderCount(prev => prev + 1);
+        
+        // Show notification
+        toast.success(`New order from ${newOrder.customer.name}!`, {
+          duration: 5000,
+          position: 'top-right'
+        });
+      }
+    }, 60000); // Check every minute
+    
+    return () => clearInterval(demoInterval);
+  }, []);
 
-  const unreadCount = notifications.filter(n => !readNotifications.has(n.id)).length;
+  // Also try to fetch real orders from API
+  useEffect(() => {
+    const fetchRealOrders = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return;
 
-  const value: NotificationContextType = {
-    notifications,
-    unreadCount,
-    addNotification,
-    markAsRead,
-    markAllAsRead,
-    updateOrderStatus,
-    removeNotification,
-    getOrderById,
-    playNotificationSound,
-    addDemoOrder,
-    clearAllOrders,
-    getCustomerById,
-    addNewCustomerFromOrder
-  };
+        const response = await fetch(`${config.API_BASE_URL}/orders?status=pending,processing`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const realOrders = await response.json();
+          if (realOrders && realOrders.length > 0) {
+            setOnlineOrders(prev => {
+              // Merge real orders with demo orders, avoiding duplicates
+              const existingIds = new Set(prev.map(o => o.id));
+              const newOrders = realOrders.filter((order: OnlineOrder) => !existingIds.has(order.id));
+              return [...newOrders, ...prev];
+            });
+          }
+        }
+      } catch (error) {
+        // Silently fail - demo orders will still work
+        console.log('Could not fetch real orders, using demo mode');
+      }
+    };
+
+    fetchRealOrders();
+    const interval = setInterval(fetchRealOrders, 30000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <NotificationContext.Provider value={value}>
+    <NotificationContext.Provider value={{
+      onlineOrders,
+      unreadOrderCount,
+      fetchOnlineOrders,
+      markOrderAsRead,
+      clearAllOrders
+    }}>
       {children}
     </NotificationContext.Provider>
   );

@@ -7,7 +7,6 @@ import {
   Lock, 
   User, 
   Shield, 
-  AlertCircle,
   Loader
 } from 'lucide-react';
 
@@ -46,12 +45,6 @@ const Login: React.FC = () => {
     }));
   };
 
-  // Demo accounts for testing
-  const demoAccounts = [
-    { username: 'admin', password: 'admin123', role: 'Admin' },
-    { username: 'pharmacist1', password: 'admin123', role: 'Pharmacist' },
-    { username: 'assistant1', password: 'admin123', role: 'Assistant' }
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -134,36 +127,6 @@ const Login: React.FC = () => {
           </form>
         </div>
 
-        {/* Demo Accounts */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="flex items-center mb-4">
-            <AlertCircle className="h-5 w-5 text-amber-500 mr-2" />
-            <h3 className="text-sm font-medium text-gray-900">Demo Accounts</h3>
-          </div>
-          <div className="space-y-3">
-            {demoAccounts.map((account, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
-                onClick={() => setCredentials({
-                  username: account.username,
-                  password: account.password
-                })}
-              >
-                <div>
-                  <div className="font-medium text-sm text-gray-900">{account.username}</div>
-                  <div className="text-xs text-gray-500">{account.role}</div>
-                </div>
-                <div className="text-xs text-gray-400">Click to use</div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 text-xs text-gray-500">
-            <strong>Admin:</strong> Full access to all features<br />
-            <strong>Pharmacist:</strong> Can create orders, manage customers, view analytics<br />
-            <strong>Assistant:</strong> Can only create orders and view basic information
-          </div>
-        </div>
 
         {/* Security Notice */}
         <div className="text-center">

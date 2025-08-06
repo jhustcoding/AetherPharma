@@ -3,14 +3,14 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { TrendingUp, DollarSign, Package, Users, Calendar, Star, AlertTriangle, Activity, Zap, Clock, Target, BarChart3, Brain, TrendingDown, PieChart as PieChartIcon, Calculator, ShoppingCart, UserCheck, Percent, Globe, Store } from 'lucide-react';
 import { InventoryAnalyticsService } from '../services/inventoryAnalytics';
 import { AnalyticsService } from '../services/analyticsService';
-import { useNotifications } from '../contexts/NotificationContext';
+import { useNotification } from '../contexts/NotificationContext';
 import InventoryMovementAnalysis from './InventoryMovementAnalysis';
 
 const Analytics: React.FC = () => {
   const [selectedTimeRange, setSelectedTimeRange] = useState('7d');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [activeTab, setActiveTab] = useState<'overview' | 'movement' | 'online'>('overview');
-  const { notifications: onlineOrders } = useNotifications();
+  const { notifications: onlineOrders } = useNotification();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

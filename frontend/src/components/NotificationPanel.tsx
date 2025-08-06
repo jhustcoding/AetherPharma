@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { useNotifications, OnlineOrder } from '../contexts/NotificationContext';
+import { useNotification, OnlineOrder } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   Bell, 
@@ -29,7 +29,7 @@ interface NotificationPanelProps {
 }
 
 const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }) => {
-  const { notifications, unreadCount, markAsRead, markAllAsRead, updateOrderStatus, removeNotification, getCustomerById } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, updateOrderStatus, removeNotification, getCustomerById } = useNotification();
   const { hasPermission } = useAuth();
   const [selectedOrder, setSelectedOrder] = useState<OnlineOrder | null>(null);
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { NotificationProvider, useNotifications } from './contexts/NotificationContext';
+import { NotificationProvider, useNotification } from './contexts/NotificationContext';
 import Login from './components/Login';
 import Analytics from './components/Analytics';
 import Customers from './components/Customers';
@@ -15,7 +15,7 @@ type Page = 'analytics' | 'customers' | 'inventory' | 'orders' | 'suppliers';
 
 function AppContent() {
   const { user, logout, hasPermission, isEmployee, isAdmin } = useAuth();
-  const { unreadCount } = useNotifications();
+  const { unreadCount } = useNotification();
   const [currentPage, setCurrentPage] = useState<Page>('orders');
   const [showNotifications, setShowNotifications] = useState(false);
 

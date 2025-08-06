@@ -10,7 +10,7 @@ const Analytics: React.FC = () => {
   const [selectedTimeRange, setSelectedTimeRange] = useState('7d');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [activeTab, setActiveTab] = useState<'overview' | 'movement' | 'online'>('overview');
-  const { notifications: onlineOrders } = useNotification();
+  const { onlineOrders } = useNotification();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,6 +95,18 @@ const Analytics: React.FC = () => {
 
   // Online order analytics
   const getOnlineOrderAnalytics = () => {
+    if (!onlineOrders || !Array.isArray(onlineOrders)) {
+      return {
+        totalOrders: 0,
+        totalRevenue: 0,
+        avgOrderValue: 0,
+        statusCounts: {},
+        topItems: [],
+        dailyOrders: [],
+        conversionRate: 0
+      };
+    }
+    
     const completedOrders = onlineOrders.filter(order => order.status === 'completed');
     const totalRevenue = onlineOrders.reduce((sum, order) => sum + order.total, 0);
     const avgOrderValue = onlineOrders.length > 0 ? totalRevenue / onlineOrders.length : 0;

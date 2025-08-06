@@ -29,7 +29,7 @@ interface NotificationPanelProps {
 }
 
 const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }) => {
-  const { notifications, unreadCount, markAsRead, markAllAsRead, updateOrderStatus, removeNotification, getCustomerById } = useNotification();
+  const { onlineOrders, unreadOrderCount, markOrderAsRead, clearAllOrders } = useNotification();
   const { hasPermission } = useAuth();
   const [selectedOrder, setSelectedOrder] = useState<OnlineOrder | null>(null);
 
@@ -111,7 +111,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
 
         {/* Order List */}
         <div className="flex-1 overflow-y-auto">
-          {notifications.length === 0 ? (
+          {onlineOrders.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500">
               <ShoppingBag className="w-12 h-12 mb-4 opacity-50" />
               <p>No online orders yet</p>
@@ -119,7 +119,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {notifications.map((order) => (
+              {onlineOrders.map((order) => (
                 <div
                   key={order.id}
                   className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${getPriorityColor(order.priority)}`}

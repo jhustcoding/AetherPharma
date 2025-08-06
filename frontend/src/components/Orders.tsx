@@ -39,7 +39,7 @@ import { Product, Customer, Service } from '../types';
 import { apiService } from '../services/api';
 import { ServiceService } from '../services/serviceService';
 import QRScanner from './QRScanner';
-import { useNotifications } from '../contexts/NotificationContext';
+import { useNotification } from '../contexts/NotificationContext';
 import FastOrderWorkflow from './FastOrderWorkflow';
 
 interface CartItem {
@@ -80,7 +80,7 @@ interface OrderFormData {
 
 const Orders: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'fast-order' | 'new-order' | 'order-history' | 'online-orders'>('fast-order');
-  const { notifications: onlineOrders, updateOrderStatus, addDemoOrder, clearAllOrders } = useNotifications();
+  const { onlineOrders, markOrderAsRead, clearAllOrders } = useNotification();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -1004,13 +1004,6 @@ const Orders: React.FC = () => {
         </div>
         <div className="flex items-center space-x-2">
           <button
-            onClick={addDemoOrder}
-            className="bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center text-sm"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Add Demo Order
-          </button>
-          <button
             onClick={clearAllOrders}
             className="bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 transition-colors flex items-center text-sm"
           >
@@ -1096,7 +1089,7 @@ const Orders: React.FC = () => {
                   <div className="flex items-center space-x-2">
                     {order.status === 'pending' && (
                       <button
-                        onClick={() => updateOrderStatus(order.id, 'confirmed')}
+                        onClick={() => markOrderAsRead(order.id)}
                         className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors"
                       >
                         Accept
@@ -1104,7 +1097,7 @@ const Orders: React.FC = () => {
                     )}
                     {order.status === 'confirmed' && (
                       <button
-                        onClick={() => updateOrderStatus(order.id, 'preparing')}
+                        onClick={() => markOrderAsRead(order.id)}
                         className="bg-purple-500 text-white px-3 py-1 rounded text-sm hover:bg-purple-600 transition-colors"
                       >
                         Start Preparing
@@ -1112,7 +1105,7 @@ const Orders: React.FC = () => {
                     )}
                     {order.status === 'preparing' && (
                       <button
-                        onClick={() => updateOrderStatus(order.id, 'ready')}
+                        onClick={() => markOrderAsRead(order.id)}
                         className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition-colors"
                       >
                         Mark Ready
@@ -1120,7 +1113,7 @@ const Orders: React.FC = () => {
                     )}
                     {order.status === 'ready' && (
                       <button
-                        onClick={() => updateOrderStatus(order.id, 'completed')}
+                        onClick={() => markOrderAsRead(order.id)}
                         className="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 transition-colors"
                       >
                         Complete

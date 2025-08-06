@@ -54,9 +54,9 @@ const Customers: React.FC = () => {
         const errorText = await response.text();
         console.error('Failed to load customers:', response.status, errorText);
         
-        // If token is invalid, try to refresh the session
-        if (response.status === 401 && errorText.includes('Invalid token')) {
-          // Clear invalid token
+        // Only clear tokens if specifically told the token is invalid/expired
+        if (response.status === 401 && (errorText.includes('invalid') || errorText.includes('expired') || errorText.includes('malformed'))) {
+          // Clear invalid token and redirect to login
           localStorage.removeItem('auth_token');
           localStorage.removeItem('refresh_token');
           localStorage.removeItem('user_info');

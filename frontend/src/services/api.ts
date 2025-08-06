@@ -40,8 +40,15 @@ class ApiService {
       
       // Handle specific error cases
       if (response.status === 401) {
-        this.clearToken();
-        throw new Error('Authentication failed. Please log in again.');
+        // Only clear token if the error specifically mentions invalid/expired token
+        const errorMsg = errorData.error || '';
+        if (errorMsg.includes('invalid') || errorMsg.includes('expired') || errorMsg.includes('malformed')) {
+          this.clearToken();
+          throw new Error('Authentication failed. Please log in again.');
+        } else {
+          // Don't clear token for other 401 errors (might be temporary)
+          throw new Error('Access denied. Please try again.');
+        }
       } else if (response.status === 403) {
         throw new Error('Access denied. Insufficient permissions.');
       } else if (response.status === 429) {

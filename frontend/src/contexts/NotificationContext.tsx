@@ -40,10 +40,12 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
       if (response.ok) {
         const orders = await response.json();
-        setOnlineOrders(orders);
+        // Ensure orders is an array - handle different API response formats
+        const orderArray = Array.isArray(orders) ? orders : (orders.orders || []);
+        setOnlineOrders(orderArray);
         
         // Count unread orders
-        const unreadCount = orders.filter((order: OnlineOrder) => 
+        const unreadCount = orderArray.filter((order: OnlineOrder) => 
           order.status === 'pending' || order.status === 'processing'
         ).length;
         
@@ -56,6 +58,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       }
     } catch (error) {
       console.error('Failed to fetch online orders:', error);
+      // Set empty array on error to prevent crashes
+      setOnlineOrders([]);
+      setUnreadOrderCount(0);
     }
   };
 
@@ -138,7 +143,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         
         newOrder.items[0].subtotal = newOrder.items[0].price * newOrder.items[0].quantity;
         
-        setOnlineOrders(prev => [newOrder, ...prev]);
+        setOnlineOrders(prev => Array.isArray(prev) ? [newOrder, ...prev] : [newOrder]);
         setUnreadOrderCount(prev => prev + 1);
         
         // Show notification
@@ -167,12 +172,15 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
         if (response.ok) {
           const realOrders = await response.json();
-          if (realOrders && realOrders.length > 0) {
+          const realOrderArray = Array.isArray(realOrders) ? realOrders : (realOrders.orders || []);
+          
+          if (realOrderArray && realOrderArray.length > 0) {
             setOnlineOrders(prev => {
+              const prevArray = Array.isArray(prev) ? prev : [];
               // Merge real orders with demo orders, avoiding duplicates
-              const existingIds = new Set(prev.map(o => o.id));
-              const newOrders = realOrders.filter((order: OnlineOrder) => !existingIds.has(order.id));
-              return [...newOrders, ...prev];
+              const existingIds = new Set(prevArray.map(o => o.id));
+              const newOrders = realOrderArray.filter((order: OnlineOrder) => !existingIds.has(order.id));
+              return [...newOrders, ...prevArray];
             });
           }
         }

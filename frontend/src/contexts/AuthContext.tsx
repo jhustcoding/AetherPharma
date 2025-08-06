@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { toast } from 'react-hot-toast';
+import { config } from '../config';
 
 export type UserRole = 'admin' | 'manager' | 'pharmacist' | 'assistant';
 
@@ -56,8 +57,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const verifyToken = async () => {
     try {
-      // In a real app, you'd verify the token with the server
-      // For now, we'll decode the stored user info
+      const token = localStorage.getItem('auth_token');
+      if (!token || token.startsWith('demo_token_')) {
+        // Remove old demo tokens
+        logout();
+        return;
+      }
+
+      // Verify token with backend
+      const response = await fetch(config.getApiUrl('/auth/verify'), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Token verification failed');
+      }
+
       const storedUser = localStorage.getItem('user_info');
       if (storedUser) {
         const userData = JSON.parse(storedUser);
@@ -75,84 +94,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       
-      // Demo accounts for testing (since backend is not running)
-      const demoAccounts = [
-        { 
-          username: 'admin', 
-          password: 'admin123', 
-          role: 'admin' as UserRole,
-          user: {
-            id: '1',
-            username: 'admin',
-            email: 'admin@aetherpharma.com',
-            first_name: 'Admin',
-            last_name: 'User',
-            role: 'admin' as UserRole,
-            is_active: true,
-            last_login_at: new Date().toISOString()
-          }
+      // Call real backend API
+      const response = await fetch(config.getApiUrl('/auth/login'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        { 
-          username: 'pharmacist1', 
-          password: 'admin123', 
-          role: 'pharmacist' as UserRole,
-          user: {
-            id: '2',
-            username: 'pharmacist1',
-            email: 'pharmacist1@aetherpharma.com',
-            first_name: 'John',
-            last_name: 'Pharmacist',
-            role: 'pharmacist' as UserRole,
-            is_active: true,
-            last_login_at: new Date().toISOString()
-          }
-        },
-        { 
-          username: 'assistant1', 
-          password: 'admin123', 
-          role: 'assistant' as UserRole,
-          user: {
-            id: '3',
-            username: 'assistant1',
-            email: 'assistant1@aetherpharma.com',
-            first_name: 'Jane',
-            last_name: 'Assistant',
-            role: 'assistant' as UserRole,
-            is_active: true,
-            last_login_at: new Date().toISOString()
-          }
-        }
-      ];
+        body: JSON.stringify({ username, password }),
+      });
 
-      // Find matching demo account
-      const account = demoAccounts.find(acc => acc.username === username && acc.password === password);
-      
-      if (!account) {
-        throw new Error('Invalid username or password');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Invalid username or password');
       }
 
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const data = await response.json();
       
       const userData: User = {
-        id: account.user.id,
-        username: account.user.username,
-        email: account.user.email,
-        firstName: account.user.first_name,
-        lastName: account.user.last_name,
-        role: account.user.role,
-        isActive: account.user.is_active,
-        lastLoginAt: account.user.last_login_at
+        id: data.user.id,
+        username: data.user.username,
+        email: data.user.email,
+        firstName: data.user.first_name,
+        lastName: data.user.last_name,
+        role: data.user.role,
+        isActive: data.user.is_active,
+        lastLoginAt: data.user.last_login_at
       };
 
       setUser(userData);
       localStorage.setItem('user_info', JSON.stringify(userData));
-      localStorage.setItem('auth_token', `demo_token_${userData.id}`);
+      localStorage.setItem('auth_token', data.access_token);
+      if (data.refresh_token) {
+        localStorage.setItem('refresh_token', data.refresh_token);
+      }
       
       toast.success(`Welcome back, ${userData.firstName}!`);
     } catch (error) {
       console.error('Login failed:', error);
-      toast.error('Invalid username or password');
+      toast.error(error instanceof Error ? error.message : 'Invalid username or password');
       throw error;
     } finally {
       setIsLoading(false);
@@ -163,6 +142,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
     localStorage.removeItem('user_info');
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('refresh_token');
     toast.success('Logged out successfully');
   };
 
@@ -177,6 +157,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         products: ['create', 'read', 'update', 'delete'],
         orders: ['create', 'read', 'update', 'delete'],
         sales: ['create', 'read', 'update', 'delete', 'refund'],
+        suppliers: ['create', 'read', 'update', 'delete'],
         analytics: ['read'],
         audit: ['read'],
         qr: ['create', 'read', 'scan'],
@@ -188,6 +169,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         products: ['create', 'read', 'update', 'delete'],
         orders: ['create', 'read', 'update'],
         sales: ['create', 'read', 'update', 'refund'],
+        suppliers: ['create', 'read', 'update', 'delete'],
         analytics: ['read'],
         qr: ['create', 'read', 'scan'],
         inventory: ['create', 'read', 'update', 'delete']
@@ -197,6 +179,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         products: ['read', 'update'],
         orders: ['create', 'read', 'update'],
         sales: ['create', 'read'],
+        suppliers: ['read'],
         analytics: ['read'],
         qr: ['read', 'scan'],
         inventory: ['read', 'update']
@@ -206,6 +189,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         products: ['read'],
         orders: ['create', 'read'],
         sales: ['read'],
+        suppliers: ['read'],
         qr: ['read', 'scan'],
         inventory: ['read']
       }

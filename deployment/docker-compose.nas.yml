@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  backend:
+    container_name: aetherpharma-backend
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - JWT_SECRET=nas-secure-jwt-secret-change-this
+      - ENCRYPTION_KEY=32-character-key-for-nas-deploy1
+      - DB_TYPE=sqlite
+      - GIN_MODE=release
+      - ALLOWED_ORIGINS=http://YOUR-NAS-IP:3000,http://aetherpharma.local:3000
+    volumes:
+      - ./data:/app/data
+      - ./pharmacy.db:/app/pharmacy.db
+    networks:
+      - aetherpharma-net
+
+  frontend:
+    container_name: aetherpharma-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_BASE_URL=http://YOUR-NAS-IP:8080
+    depends_on:
+      - backend
+    networks:
+      - aetherpharma-net
+
+networks:
+  aetherpharma-net:
+    driver: bridge

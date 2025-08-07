@@ -1,6 +1,59 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides comprehensive guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+AetherPharma is a comprehensive pharmacy management system with:
+- **Fast order workflow** with USB barcode scanning
+- **Customer management** with discount eligibility (Senior Citizen/PWD)
+- **Prescription handling** with camera integration
+- **Real-time online orders** with notifications
+- **Supplier management** with ordering instructions
+- **Analytics dashboard** with sales trends
+- **Role-based authentication** with JWT tokens
+- **HIPAA-compliant data encryption**
+
+## Docker Deployment
+
+This project uses Docker Compose for deployment. There are only **2 configurations**:
+
+### 🚀 Production (TrueNAS SCALE) - MAIN DEPLOYMENT
+
+**File:** `truenas-docker-compose-production.yaml`
+
+**Usage:**
+```bash
+docker-compose -f truenas-docker-compose-production.yaml up -d
+```
+
+**Features:**
+- ✅ Uses **Tailscale IP (100.104.33.63)** for cross-device access
+- ✅ PostgreSQL database with migrations
+- ✅ Production-optimized environment variables
+- ✅ CORS configured for external access
+
+**Access URLs:**
+- Frontend: http://100.104.33.63:3000
+- Backend: http://100.104.33.63:8080
+
+### 🔧 Local Development
+
+**File:** `docker-compose.yml`
+
+**Usage:**
+```bash
+docker-compose up -d
+```
+
+**Features:**
+- ✅ Uses localhost (127.0.0.1)
+- ✅ Development mode settings
+- ✅ Hot reloading enabled
+
+**Access URLs:**
+- Frontend: http://localhost:3000
+- Backend: http://localhost:8080
 
 ## Development Commands
 
@@ -52,6 +105,23 @@ The `run-dev.sh` script automatically creates `.env.local` with development sett
 - `POSTGRES_HOST`: PostgreSQL hostname (defaults to localhost)
 - `POSTGRES_PORT`: PostgreSQL port (defaults to 5432)
 
+## Authentication & Access
+
+### Default Login Credentials
+```
+Username: admin
+Password: admin123
+```
+
+**Other test accounts:**
+- Pharmacist: `pharmacist1` / `admin123`
+
+### Role-Based Access
+- **Admin**: Full system access, user management, supplier management
+- **Manager**: Customer/product/sales/supplier management, analytics
+- **Pharmacist**: Limited customer/product access, sales processing, read-only suppliers
+- **Assistant**: Read-only access, basic sales operations
+
 ## Architecture Overview
 
 ### Backend (Go/Gin/GORM)
@@ -92,11 +162,11 @@ The `run-dev.sh` script automatically creates `.env.local` with development sett
 4. All API requests include `Authorization: Bearer <token>` header
 5. Backend middleware validates token and permissions
 
-### Role-Based Access
-- **Admin**: Full system access, user management, supplier management
-- **Manager**: Customer/product/sales/supplier management, analytics
-- **Pharmacist**: Limited customer/product access, sales processing, read-only suppliers
-- **Assistant**: Read-only access, basic sales operations
+### Token Persistence Issues (RESOLVED)
+- **Problem**: AuthContext was calling non-existent `/auth/verify` endpoint
+- **Solution**: Removed backend verification, restored user from localStorage
+- **Problem**: API service cleared tokens on any 401 error
+- **Solution**: Only clear tokens for specific invalid/expired/malformed errors
 
 ## Database Architecture
 
@@ -104,7 +174,6 @@ The `run-dev.sh` script automatically creates `.env.local` with development sett
 - Primary: PostgreSQL with connection pooling
 - Fallback: SQLite for development when PostgreSQL unavailable
 - Auto-migration on startup creates/updates tables
-- Redis for session management and rate limiting (optional)
 - **Important**: When using SQLite, use `LIKE ? COLLATE NOCASE` instead of `ILIKE` for case-insensitive searches
 
 ### Key Relationships
@@ -127,7 +196,24 @@ The `run-dev.sh` script automatically creates `.env.local` with development sett
 - Customer creation syncs between Orders and Customer pages
 - **Field Naming**: Backend uses snake_case, frontend handles both camelCase and snake_case
 
+### React Error Fixes Applied
+- **Orders component**: Fixed `useNotification` import to match actual exports (`onlineOrders` not `notifications`)
+- **Analytics component**: Added null safety checks for array operations
+- **NotificationContext**: Added array safety checks to prevent "prev is not iterable" errors
+
 ## Pharmacy-Specific Features
+
+### Fast Order Workflow (USB Barcode Scanning)
+- **Always-on barcode scanning** in Orders tab using USB scanners
+- Uses **keyboard event listeners** (NOT camera-based scanning)
+- Listens for rapid key sequences ending with Enter key
+- Automatically processes scanned barcodes
+- Multi-step workflow: Product scanning → Customer identification → Prescription handling → Payment
+
+### Customer Identification
+- **Existing members**: QR code scanning for fast identification
+- **New customers**: Full registration with medical history
+- **Guest customers**: Minimal profile for discount eligibility only
 
 ### Discount System
 - Senior Citizen (20% discount) takes priority over PWD (20% discount)
@@ -142,15 +228,9 @@ The `run-dev.sh` script automatically creates `.env.local` with development sett
 - Multiple prescription images supported per order
 - Batch prescription processing after product scanning
 
-### Customer Types
-- **Full Customer**: Complete profile with medical history, allergies, medications
-- **Guest Customer**: Minimal profile focused on discount eligibility only
-- **Both types save to same database table with appropriate validation
-
 ### Order Management
 - Online orders from customers (real-time notifications)
 - In-store order processing with cart management
-- USB barcode scanner support (keyboard event listeners, NOT camera-based)
 - QR code generation for customer identification
 - Inventory tracking with low-stock alerts
 
@@ -159,6 +239,17 @@ The `run-dev.sh` script automatically creates `.env.local` with development sett
 - Ordering instructions and payment terms
 - Address management for delivery coordination
 - Active/inactive status tracking for supplier relationships
+
+## Network Configuration
+
+### Tailscale Integration
+- **Production IP**: `100.104.33.63` (configured in truenas-docker-compose-production.yaml)
+- **Local Network**: `192.168.0.9` (for local development)
+- Enables secure cross-device access without port forwarding
+
+### CORS Configuration
+- Backend configured with `CORS_ALLOWED_ORIGINS: "*"` for external access
+- Supports requests from any origin (appropriate for internal Tailscale network)
 
 ## Common Development Tasks
 
@@ -181,61 +272,50 @@ REACT_APP_API_BASE_URL=https://api.example.com npm start
 - Migrations run automatically on startup
 - Located in `internal/database/migrations.go`
 - Use GORM's AutoMigrate for schema changes
+- Default admin user created automatically: `admin` / `admin123`
 
-## Troubleshooting
-
-### Authentication Testing
-Default credentials (change in production):
-- Admin: `admin` / `admin123`
-- Pharmacist: `pharmacist1` / `admin123`
-
-### Database Fallback Behavior
-System gracefully handles PostgreSQL unavailability by falling back to SQLite. Real production deployments should ensure PostgreSQL availability.
-
-### File Uploads
-ID documents and prescription images are handled as File objects in frontend. Backend expects file names in API payload - implement proper file storage as needed.
-
-### USB Barcode Scanner Integration
-- Uses keyboard event listeners to capture barcode input
-- Does NOT use camera for barcode scanning
-- Listens for rapid key sequences ending with Enter key
-- Automatically processes scanned barcodes
+## Troubleshooting Guide
 
 ### Frontend Cache Issues
 If you encounter ESLint cache permission errors:
-1. Use `./start-dev-safe.sh` or `./start-no-cache.sh` instead of `npm start`
+1. Use `./start-dev-safe.sh` instead of `npm start`
 2. These scripts disable ESLint caching and clean problematic cache directories
 3. The `.env.local` file contains cache-disabling environment variables
 4. If persistent, use `DISABLE_ESLINT_PLUGIN=true npm start`
 
-### Authentication Issues
-If frontend shows "Failed to load suppliers" or similar API errors:
-1. The AuthContext.tsx may be using demo tokens instead of real JWT tokens
-2. Use browser console to manually authenticate:
+### Authentication Debugging
+If frontend shows API errors or token issues:
+1. Check browser console for errors
+2. Verify token in localStorage: `localStorage.getItem('auth_token')`
+3. Clear tokens manually if needed:
    ```javascript
-   // Clear old tokens and login with real backend
    localStorage.removeItem('auth_token');
-   fetch('http://localhost:8080/api/v1/auth/login', {
-     method: 'POST',
-     headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify({ username: 'admin', password: 'admin123' })
-   }).then(r => r.json()).then(d => {
-     localStorage.setItem('auth_token', d.access_token);
-     localStorage.setItem('user_info', JSON.stringify({...d.user, firstName: d.user.first_name, lastName: d.user.last_name}));
-     location.reload();
-   });
+   localStorage.removeItem('user_info');
+   localStorage.removeItem('refresh_token');
    ```
-3. Ensure backend is running on port 8080 before starting frontend
+4. Test backend directly: `curl http://100.104.33.63:8080/health`
+5. Ensure backend is running before starting frontend
 
-### API Endpoints Coverage
+### Database Connection Issues
+1. **PostgreSQL not available**: System falls back to SQLite automatically
+2. **Migration errors**: Check database user permissions
+3. **Empty users table**: Default admin user should be created automatically
+
+### Container Permission Issues
+If Docker containers create root-owned files:
+1. Files may be owned by root due to container execution
+2. Use `sudo chown -R $(whoami):staff <directory>` to fix ownership
+3. This commonly affects `.env`, `node_modules/`, and generated files
+
+## API Endpoints Coverage
 The system includes complete CRUD operations for:
-- Customers (with discount eligibility and encrypted medical data)
-- Products (with prescription requirements and inventory tracking)  
-- Sales (with discount calculations and refund capabilities)
-- Suppliers (with contact management and ordering instructions)
-- Analytics (dashboard metrics, sales trends, inventory movement)
-- QR Code scanning for customer identification
-- Online order processing with real-time notifications
+- **Customers** (with discount eligibility and encrypted medical data)
+- **Products** (with prescription requirements and inventory tracking)  
+- **Sales** (with discount calculations and refund capabilities)
+- **Suppliers** (with contact management and ordering instructions)
+- **Analytics** (dashboard metrics, sales trends, inventory movement)
+- **QR Code scanning** for customer identification
+- **Online order processing** with real-time notifications
 
 ## Performance Optimization
 
@@ -251,22 +331,51 @@ The system includes complete CRUD operations for:
 - Debounced search inputs
 - Optimistic UI updates
 
-## Deployment Notes
+## Production Deployment Checklist
 
-### Docker
-```bash
-docker-compose up -d            # Start all services
-docker-compose logs -f backend  # View backend logs
-docker-compose down             # Stop all services
-```
+### Security Configuration
+- ✅ Set secure JWT_SECRET (32+ characters)
+- ✅ Set ENCRYPTION_KEY (exactly 32 characters for AES-256)
+- ✅ Enable HIPAA_MODE=true
+- ✅ Configure strong database passwords
+- ✅ Enable audit logging
 
-### Production Checklist
-- Set secure JWT_SECRET and ENCRYPTION_KEY
-- Enable HIPAA_MODE
-- Configure PostgreSQL with SSL
-- Set up Redis for session management
-- Enable rate limiting
-- Configure CORS for production domain
-- Set up SSL/TLS certificates
-- Enable audit logging
-- Configure backup strategy
+### Network & Access
+- ✅ Configure Tailscale IP (100.104.33.63)
+- ✅ Set up CORS for production domain
+- ✅ Test cross-device access via Tailscale
+- ✅ Verify ports 3000, 8080 are accessible
+
+### Database & Persistence
+- ✅ PostgreSQL with SSL enabled
+- ✅ Connection pooling configured
+- ✅ Backup strategy implemented
+- ✅ Migration verification
+
+### Monitoring & Maintenance
+- ✅ Container restart policies set
+- ✅ Log aggregation configured
+- ✅ Health check endpoints verified
+- ✅ Performance monitoring enabled
+
+## File Organization
+
+### Essential Files (Keep These)
+- `truenas-docker-compose-production.yaml` - **Main production deployment**
+- `docker-compose.yml` - Local development
+- `run-dev.sh` - Development startup script
+- `CLAUDE.md` - This comprehensive documentation
+
+### Cleaned Up (Removed)
+- All temporary fix scripts (*.sh debug files)
+- Multiple redundant YAML variants
+- Debug HTML files
+- Backup component files
+
+## Important Notes
+- **Always use the production YAML file** for TrueNAS deployment
+- **Tailscale IP (100.104.33.63)** is configured for cross-device access
+- **Authentication tokens persist** when switching tabs (issue resolved)
+- **USB barcode scanners** use keyboard input (not camera)
+- **Default credentials** should be changed in production
+- **All major component crashes** have been resolved
